@@ -1,58 +1,71 @@
 import UIKit
 import WebKit
 
-public final class NavigatorViewController: UIViewController {
+open class NavigatorViewController: UIViewController {
 
-  private let delegatee: Delegatee!
-  public let spineURLs: [URL]
-  private let triptychView: TriptychView
+    private let delegatee: Delegatee!
+    private let triptychView: TriptychView
+    public let spineURLs: [URL]
 
-  public init(spineURLs: [URL], initialIndex: Int) {
-    precondition(initialIndex >= 0)
-    precondition(initialIndex < spineURLs.count)
+    public init(spineURLs: [URL], initialIndex: Int) {
+        precondition(initialIndex >= 0)
+        precondition(initialIndex < spineURLs.count)
 
-    self.delegatee = Delegatee()
-    self.spineURLs = spineURLs
-    self.triptychView = TriptychView(frame: CGRect.zero, viewCount: spineURLs.count, initialIndex: initialIndex)
+        delegatee = Delegatee()
+        self.spineURLs = spineURLs
+        triptychView = TriptychView(frame: CGRect.zero, viewCount: spineURLs.count, initialIndex: initialIndex)
 
-    super.init(nibName: nil, bundle: nil)
+        super.init(nibName: nil, bundle: nil)
 
-    self.delegatee.parent = self
+        delegatee.parent = self
 
-    self.triptychView.delegate = self.delegatee
-    self.triptychView.frame = self.view.bounds
-    self.triptychView.autoresizingMask = [.flexibleHeight, .flexibleWidth]
-    self.view.addSubview(self.triptychView)
-  }
+        triptychView.delegate = delegatee
+        triptychView.frame = view.bounds
+        triptychView.autoresizingMask = [.flexibleHeight, .flexibleWidth]
+        view.addSubview(triptychView)
+    }
 
-  @available(*, unavailable)
-  public required init?(coder aDecoder: NSCoder) {
-    fatalError("init(coder:) has not been implemented")
-  }
+    @available(*, unavailable)
+    public required init?(coder aDecoder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
 
-  public override var prefersStatusBarHidden: Bool {
-    return true
-  }
+    open override var prefersStatusBarHidden: Bool {
+        return false//true
+    }
+
+    /// [Safe] Display the spine item at `index`.
+    ///
+    /// - Parameter index: The index of the spine item to display.
+    public func displaySpineItem(at index: Int) {
+        // Check if index is in bounds.
+        guard spineURLs.indices.contains(index) else {
+            return
+        }
+        // Load the item in the triptychView.
+        triptychView.displayItem(at: index)
+    }
 }
 
 /// Used to hide conformance to package-private delegate protocols.
 private final class Delegatee: NSObject {
-  weak var parent: NavigatorViewController!
+    weak var parent: NavigatorViewController!
 }
 
 extension Delegatee: TriptychViewDelegate {
 
-  public func triptychView(
-    _ view: TriptychView,
-    viewForIndex index: Int,
-    location: BinaryLocation
-  ) -> UIView {
+    public func triptychView(
+        _ view: TriptychView,
+        viewForIndex index: Int,
+        location: BinaryLocation
+        ) -> UIView {
 
-    let url = self.parent.spineURLs[index]
+        let url = self.parent.spineURLs[index]
+        let urlRequest = URLRequest(url: url)
 
-    let webView = WebView(frame: view.bounds, initialLocation: location)
-    webView.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
+        let webView = WebView(frame: view.bounds, initialLocation: location)
 
-    return webView
-  }
+        webView.load(urlRequest)
+        return webView
+    }
 }
