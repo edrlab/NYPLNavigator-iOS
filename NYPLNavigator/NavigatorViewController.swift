@@ -1,28 +1,20 @@
 import UIKit
+import R2Streamer
 import WebKit
 
 open class NavigatorViewController: UIViewController {
-
     private let delegatee: Delegatee!
-    private let triptychView: TriptychView
-    public let spineURLs: [URL]
+    fileprivate let triptychView: TriptychView
+    //
+    public let publication: Publication
 
-    public init(spineURLs: [URL], initialIndex: Int) {
-        precondition(initialIndex >= 0)
-        precondition(initialIndex < spineURLs.count)
-
+    public init(for publication: Publication, initialIndex: Int = 0) {
+        self.publication = publication
         delegatee = Delegatee()
-        self.spineURLs = spineURLs
-        triptychView = TriptychView(frame: CGRect.zero, viewCount: spineURLs.count, initialIndex: initialIndex)
-
+        triptychView = TriptychView(frame: CGRect.zero,
+                                    viewCount: publication.spine.count,
+                                    initialIndex: initialIndex)
         super.init(nibName: nil, bundle: nil)
-
-        delegatee.parent = self
-
-        triptychView.delegate = delegatee
-        triptychView.frame = view.bounds
-        triptychView.autoresizingMask = [.flexibleHeight, .flexibleWidth]
-        view.addSubview(triptychView)
     }
 
     @available(*, unavailable)
@@ -30,20 +22,36 @@ open class NavigatorViewController: UIViewController {
         fatalError("init(coder:) has not been implemented")
     }
 
-    open override var prefersStatusBarHidden: Bool {
-        return false//true
+    open override func viewDidLoad() {
+        super.viewDidLoad()
+        navigationController?.setNavigationBarHidden(true, animated: false)
+        //
+        delegatee.parent = self
+
+        edgesForExtendedLayout = []
+        triptychView.delegate = delegatee
+        triptychView.frame = view.bounds
+        triptychView.autoresizingMask = [.flexibleHeight, .flexibleWidth]
+        view.addSubview(triptychView)
     }
+}
+
+extension NavigatorViewController {
 
     /// [Safe] Display the spine item at `index`.
     ///
     /// - Parameter index: The index of the spine item to display.
     public func displaySpineItem(at index: Int) {
         // Check if index is in bounds.
-        guard spineURLs.indices.contains(index) else {
+        guard publication.spine.indices.contains(index) else {
             return
         }
         // Load the item in the triptychView.
         triptychView.displayItem(at: index)
+    }
+
+    public func getSpine() -> [Link] {
+        return publication.spine
     }
 }
 
@@ -54,18 +62,16 @@ private final class Delegatee: NSObject {
 
 extension Delegatee: TriptychViewDelegate {
 
-    public func triptychView(
-        _ view: TriptychView,
-        viewForIndex index: Int,
-        location: BinaryLocation
-        ) -> UIView {
-
-        let url = self.parent.spineURLs[index]
-        let urlRequest = URLRequest(url: url)
-
+    public func triptychView(_ view: TriptychView, viewForIndex index: Int,
+                             location: BinaryLocation) -> UIView {
         let webView = WebView(frame: view.bounds, initialLocation: location)
+        let link = parent.publication.spine[index]
 
-        webView.load(urlRequest)
+        if let url = parent.publication.uriTo(link: link) {
+            let urlRequest = URLRequest(url: url)
+
+            webView.load(urlRequest)
+        }
         return webView
     }
 }
