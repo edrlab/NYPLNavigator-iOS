@@ -8,7 +8,7 @@ open class NavigatorViewController: UIViewController {
     //
     public let publication: Publication
 
-    public init(for publication: Publication, initialIndex: Int = 0) {
+    public init(for publication: Publication, initialIndex: Int) {
         self.publication = publication
         delegatee = Delegatee()
         triptychView = TriptychView(frame: CGRect.zero,
@@ -24,11 +24,7 @@ open class NavigatorViewController: UIViewController {
 
     open override func viewDidLoad() {
         super.viewDidLoad()
-        navigationController?.setNavigationBarHidden(true, animated: false)
-        //
         delegatee.parent = self
-
-        edgesForExtendedLayout = []
         triptychView.delegate = delegatee
         triptychView.frame = view.bounds
         triptychView.autoresizingMask = [.flexibleHeight, .flexibleWidth]
