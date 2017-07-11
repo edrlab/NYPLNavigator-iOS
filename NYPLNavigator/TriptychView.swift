@@ -121,16 +121,6 @@ final class TriptychView: UIView {
         self.scrollView.contentOffset.x = size.width * CGFloat(offset)
     }
 
-    /// Display
-    ///
-    /// - Parameter index: The index of the item to display.
-    public func displayItem(at index: Int) {
-        let previousIndex = self.index
-
-        self.index = index
-        updateViews(previousIndex: previousIndex)
-    }
-
     fileprivate func updateViews(previousIndex: Int? = nil) {
 
         if previousIndex == self.index {
@@ -227,10 +217,17 @@ final class TriptychView: UIView {
         }
     }
 
-    private func moveToIndex(_ nextIndex: Int) {
-        if self.index == nextIndex {
+    /// Move to the given index.
+    ///
+    /// - Parameter nextIndex: The target index.
+    func moveToIndex(_ nextIndex: Int) {
+        if self.index == nextIndex, nextIndex > 0, nextIndex < viewCount {
             return
         }
+        let previousIndex = index
+
+        index = nextIndex
+        updateViews(previousIndex: previousIndex)
     }
 }
 
@@ -279,9 +276,9 @@ extension TriptychView: UIScrollViewDelegate {
             assert(pageOffset == 2)
             self.index += 1
         }
-        
+
         self.updateViews(previousIndex: previousIndex)
-        
+
         // This works around a very specific case that may be a bug in iOS's scroll
         // view implementation. If the user is on a view of index >= 1, and if the
         // user swipes forward slightly and then, with great force, swipes back and

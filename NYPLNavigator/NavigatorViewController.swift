@@ -38,6 +38,18 @@ open class NavigatorViewController: UIViewController {
 
 extension NavigatorViewController {
 
+    /// Display next spine item.
+    public func displayNextSpineItem() {
+        displaySpineItem(at: triptychView.index + 1)
+    }
+
+    /// Display previous spine item.
+    public func displayPreviousSpineItem() {
+        displaySpineItem(at: triptychView.index - 1)
+    }
+
+    /// TOFIX: Doesn't work properly. Winnie says that's it's related to the 
+    /// preloading changes.
     /// [Safe] Display the spine item at `index`.
     ///
     /// - Parameter index: The index of the spine item to display.
@@ -46,8 +58,7 @@ extension NavigatorViewController {
         guard publication.spine.indices.contains(index) else {
             return
         }
-        // Load the item in the triptychView.
-        triptychView.displayItem(at: index)
+        triptychView.moveToIndex(index)
     }
 
     public func getSpine() -> [Link] {
