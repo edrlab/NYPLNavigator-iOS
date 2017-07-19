@@ -16,10 +16,31 @@ open class NavigatorViewController: UIViewController {
     public init(for publication: Publication, initialIndex: Int) {
         self.publication = publication
         delegatee = Delegatee()
+        let defaults = UserDefaults.standard
+        var index = initialIndex
+
+        if index == 0 {
+            let savedIndex = defaults.integer(forKey: "\(String(describing: publication.metadata.identifier))-lastIndex")
+
+            print(savedIndex)
+            index = savedIndex
+        }
+
         triptychView = TriptychView(frame: CGRect.zero,
                                     viewCount: publication.spine.count,
-                                    initialIndex: initialIndex)
+                                    initialIndex: index)
         super.init(nibName: nil, bundle: nil)
+    }
+
+    deinit {
+        let defaults = UserDefaults.standard
+
+        defaults.set(triptychView.index,
+                     forKey: "\(String(describing: publication.metadata.identifier))-lastIndex")
+//        let test = triptychView.currentViewRegionIndex()
+//
+//        defaults.set(test,
+//                     forKey: "\(String(describing: publication.metadata.identifier))-lastRegion")
     }
 
     @available(*, unavailable)
@@ -70,14 +91,10 @@ extension NavigatorViewController {
 /// Used to hide conformance to package-private delegate protocols.
 private final class Delegatee: NSObject {
     weak var parent: NavigatorViewController!
+    fileprivate var firstView = true
 }
 
 extension Delegatee: TriptychViewDelegate {
-
-//    internal func setPageNumber(_ pageNumberString: String) {
-//        print("calling for \(pageNumberString)")
-//    }
-
     public func triptychView(_ view: TriptychView, viewForIndex index: Int,
                              location: BinaryLocation) -> UIView {
         let webView = WebView(frame: view.bounds, initialLocation: location)
@@ -89,11 +106,28 @@ extension Delegatee: TriptychViewDelegate {
 
             webView.viewDelegate = view
             webView.load(urlRequest)
+            // Load last saved regionIndex for the first view.
+            if firstView {
+                firstView = false
+                let defaults = UserDefaults.standard
+                let publicationIdentifier = parent.publication.metadata.identifier
+                let savedPosition = defaults.integer(forKey: "\(String(describing: publicationIdentifier))-lastPosition")
+
+                webView.lastPosition = savedPosition
+            }
         }
         return webView
     }
 
     public func centerTapped() {
         parent.delegate?.middleTapHandler()
+    }
+
+    public func updateLastPosition(_ position: Int) {
+        let publicationIdentifier = parent.publication.metadata.identifier
+        let defaults = UserDefaults.standard
+
+        defaults.set(position,
+                     forKey: "\(String(describing: publicationIdentifier))-lastPosition")
     }
 }

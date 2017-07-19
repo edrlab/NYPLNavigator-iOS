@@ -9,12 +9,15 @@ protocol TriptychViewDelegate: class {
         -> UIView
 
     func centerTapped()
+
+    func updateLastPosition(_ position: Int)
 }
 
 protocol ViewDelegate: class {
     func displayNextView()
     func displayPreviousView()
     func centerAreaTapped()
+    func updateLastPosition(_ position: Int)
 }
 
 final class TriptychView: UIView {
@@ -210,7 +213,7 @@ final class TriptychView: UIView {
         setNeedsLayout()
     }
 
-    // TODO: replace webview specifique stuff but some generique protocol.
+    // TODO: replace webview specifique stuff w/ some generique protocol.
     // These message handler need to be cleaned else we have a strong reference cycle.
     private func syncSubviews() {
         scrollView.subviews.forEach({
@@ -237,6 +240,31 @@ final class TriptychView: UIView {
         if index == nextIndex, nextIndex > 0, nextIndex < viewCount {
             return
         }
+
+        ///
+        guard let views = views else {
+            return
+        }
+        if views.count == 3 {
+            let width = frame.size.width
+            let xOffset = scrollView.contentOffset.x
+
+            switch clamping {
+            case .none:
+                if xOffset < width {
+                    clamping = .onlyPrevious
+                } else if xOffset > width {
+                    clamping = .onlyNext
+                }
+            case .onlyPrevious:
+                scrollView.contentOffset.x = min(xOffset, width)
+            case .onlyNext:
+                scrollView.contentOffset.x = max(xOffset, width)
+            }
+        }
+
+        clamping = .none
+        ///
         let previousIndex = index
 
         index = nextIndex
@@ -246,16 +274,25 @@ final class TriptychView: UIView {
 
 extension TriptychView: ViewDelegate {
     func displayPreviousView() {
-
+        guard index > 0 else {
+            return
+        }
         moveToIndex(index - 1)
     }
 
     func displayNextView() {
+        guard  (index + 1) < viewCount else {
+            return
+        }
         moveToIndex(index + 1)
     }
 
     func centerAreaTapped() {
         delegate?.centerTapped()
+    }
+
+    func updateLastPosition(_ position: Int) {
+        delegate?.updateLastPosition(position)
     }
 }
 

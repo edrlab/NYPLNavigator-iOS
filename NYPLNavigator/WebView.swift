@@ -7,14 +7,15 @@ final class WebView: WKWebView {
                       "rightTap": rightTapHandler]
 
     fileprivate let initialLocation: BinaryLocation
-    //    weak var delegate: NavigatorDelegate
-    public var totalRegionIndexes: Int = 0 {
+    internal var lastPosition: Int?
+    
+    public var totalPositions: Int = 0 {
         didSet {
-            print("pages -- \(totalRegionIndexes)")
+            print("pages -- \(totalPositions)")
         }
     }
 
-    public func currentRegionIndex() -> Int {
+    public func currentPosition() -> Int {
         return Int(round(scrollView.contentOffset.x / scrollView.frame.width))
     }
 
@@ -52,14 +53,11 @@ final class WebView: WKWebView {
     }
 
     func leftTapHandler(body: String) {
-        guard currentRegionIndex() > 0 else {
+        guard currentPosition() > 0 else {
             viewDelegate?.displayPreviousView()
             return
         }
-        let offset = Int(scrollView.frame.size.width) * (currentRegionIndex() - 1)
-        let regionIndex = CGPoint(x: offset, y: 0)
-
-        scrollView.setContentOffset(regionIndex, animated: false)
+        moveTo(regionIndex: currentPosition() - 1)
     }
 
     func centerTapHandler(body: String) {
@@ -67,14 +65,19 @@ final class WebView: WKWebView {
     }
 
     func rightTapHandler(body: String) {
-        guard currentRegionIndex() < totalRegionIndexes - 1 else {
+        guard currentPosition() < totalPositions - 1 else {
             viewDelegate?.displayNextView()
             return
         }
-        let offset = Int(scrollView.frame.size.width) * (currentRegionIndex() + 1)
-        let regionIndex = CGPoint(x: offset, y: 0)
+        moveTo(regionIndex: currentPosition() + 1)
+    }
 
-        scrollView.setContentOffset(regionIndex, animated: false)
+    internal func moveTo(regionIndex: Int, animated: Bool = false) {
+        let offset = Int(scrollView.frame.size.width) * regionIndex
+        let regionIndexPoint = CGPoint(x: offset, y: 0)
+
+        scrollView.setContentOffset(regionIndexPoint, animated: animated)
+        viewDelegate?.updateLastPosition(currentPosition())
     }
 }
 
@@ -120,10 +123,17 @@ extension WebView: WKNavigationDelegate {
                 let resultString = String(describing: result)
                 let scrollViewTotalWidth = Double(resultString)!
 
-                self.totalRegionIndexes = Int(ceil(scrollViewTotalWidth / scrollViewPageWidth))
+                self.totalPositions = Int(ceil(scrollViewTotalWidth / scrollViewPageWidth))
             }
         }
 
+        /// If the user already browsed the book then the last position has been saved.
+        if lastPosition != nil {
+            let offset = Double(lastPosition!) * scrollViewPageWidth
+
+            evaluateJavaScript("document.body.scrollLeft = \(offset)", completionHandler: nil)
+            return
+        }
         switch self.initialLocation {
         case .beginning:
             evaluateJavaScript("document.body.scrollLeft = 0", completionHandler: nil)
@@ -146,5 +156,9 @@ extension WebView: WKNavigationDelegate {
 extension WebView: UIScrollViewDelegate {
     func viewForZooming(in: UIScrollView) -> UIView? {
         return nil
+    }
+
+    func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
+        viewDelegate?.updateLastPosition(currentPosition())
     }
 }

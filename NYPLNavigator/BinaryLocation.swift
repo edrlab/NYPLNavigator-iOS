@@ -1,4 +1,4 @@
 enum BinaryLocation {
-  case beginning
-  case end
+    case beginning
+    case end
 }
