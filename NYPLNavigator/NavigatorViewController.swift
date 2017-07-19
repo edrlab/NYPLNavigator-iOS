@@ -2,11 +2,16 @@ import UIKit
 import R2Streamer
 import WebKit
 
+public protocol NavigatorDelegate: class {
+    func middleTapHandler()
+}
+
 open class NavigatorViewController: UIViewController {
     private let delegatee: Delegatee!
     fileprivate let triptychView: TriptychView
     //
     public let publication: Publication
+    public weak var delegate: NavigatorDelegate?
 
     public init(for publication: Publication, initialIndex: Int) {
         self.publication = publication
@@ -69,16 +74,26 @@ private final class Delegatee: NSObject {
 
 extension Delegatee: TriptychViewDelegate {
 
+//    internal func setPageNumber(_ pageNumberString: String) {
+//        print("calling for \(pageNumberString)")
+//    }
+
     public func triptychView(_ view: TriptychView, viewForIndex index: Int,
                              location: BinaryLocation) -> UIView {
         let webView = WebView(frame: view.bounds, initialLocation: location)
         let link = parent.publication.spine[index]
 
+//        webview.delegate = parent
         if let url = parent.publication.uriTo(link: link) {
             let urlRequest = URLRequest(url: url)
 
+            webView.viewDelegate = view
             webView.load(urlRequest)
         }
         return webView
+    }
+
+    public func centerTapped() {
+        parent.delegate?.middleTapHandler()
     }
 }

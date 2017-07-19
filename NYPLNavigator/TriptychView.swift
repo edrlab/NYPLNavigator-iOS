@@ -7,6 +7,14 @@ protocol TriptychViewDelegate: class {
         viewForIndex index: Int,
         location: BinaryLocation)
         -> UIView
+
+    func centerTapped()
+}
+
+protocol ViewDelegate: class {
+    func displayNextView()
+    func displayPreviousView()
+    func centerAreaTapped()
 }
 
 final class TriptychView: UIView {
@@ -69,7 +77,7 @@ final class TriptychView: UIView {
     fileprivate var clamping: Clamping = .none
 
     private var isAtAnEdge: Bool {
-        return self.index == 0 || self.index == self.viewCount - 1
+        return index == 0 || index == viewCount - 1
     }
 
     public init(frame: CGRect, viewCount: Int, initialIndex: Int) {
@@ -77,18 +85,18 @@ final class TriptychView: UIView {
         precondition(viewCount >= 1)
         precondition(initialIndex >= 0 && initialIndex < viewCount)
 
-        self.index = initialIndex
-        self.scrollView = UIScrollView()
+        index = initialIndex
+        scrollView = UIScrollView()
         self.viewCount = viewCount
 
         super.init(frame: frame)
 
-        self.scrollView.delegate = self
-        self.scrollView.frame = self.bounds
-        self.scrollView.autoresizingMask = [.flexibleHeight, .flexibleWidth]
-        self.scrollView.isPagingEnabled = true
-        self.scrollView.bounces = false
-        self.addSubview(self.scrollView)
+        scrollView.delegate = self
+        scrollView.frame = bounds
+        scrollView.autoresizingMask = [.flexibleHeight, .flexibleWidth]
+        scrollView.isPagingEnabled = true
+        scrollView.bounces = false
+        addSubview(scrollView)
     }
 
     @available(*, unavailable)
@@ -98,41 +106,39 @@ final class TriptychView: UIView {
 
     public override func layoutSubviews() {
 
-        if self.views == nil {
-            self.updateViews()
+        if views == nil {
+            updateViews()
         }
 
         guard let views = self.views else {
-            self.scrollView.contentSize = self.bounds.size
+            scrollView.contentSize = bounds.size
             return
         }
 
-        let size = self.frame.size
+        let size = frame.size
 
-        self.scrollView.contentSize = CGSize(width: size.width * CGFloat(views.count), height: size.height)
+        scrollView.contentSize = CGSize(width: size.width * CGFloat(views.count), height: size.height)
 
-        if let viewArray = self.views?.array {
-            for (index, view) in viewArray.enumerated() {
-                view.frame = CGRect(origin: CGPoint(x: size.width * CGFloat(index), y: 0), size: size)
-            }
+        for (index, view) in views.array.enumerated() {
+            view.frame = CGRect(origin: CGPoint(x: size.width * CGFloat(index), y: 0), size: size)
         }
 
-        let offset = min(1, self.index)
-        self.scrollView.contentOffset.x = size.width * CGFloat(offset)
+        let offset = min(1, index)
+        scrollView.contentOffset.x = size.width * CGFloat(offset)
     }
 
     fileprivate func updateViews(previousIndex: Int? = nil) {
 
-        if previousIndex == self.index {
+        if previousIndex == index {
             return
         }
 
-        guard let delegate = self.delegate else {
+        guard let delegate = delegate else {
             return
         }
 
         func viewForIndex(_ index: Int, location: BinaryLocation) -> UIView {
-            guard let views = self.views, let previousIndex = previousIndex else {
+            guard let views = views, let previousIndex = previousIndex else {
                 return delegate.triptychView(self, viewForIndex: index, location: location)
             }
 
@@ -164,56 +170,63 @@ final class TriptychView: UIView {
             return delegate.triptychView(self, viewForIndex: index, location: location)
         }
 
-        switch self.viewCount {
+        switch viewCount {
         case 1:
-            assert(self.index == 0)
+            assert(index == 0)
             let view = viewForIndex(0, location: .beginning)
-            self.views = Views.one(view: view)
+            views = Views.one(view: view)
         case 2:
-            assert(self.index < 2)
+            assert(index < 2)
             if index == 0 {
                 let firstView = viewForIndex(0, location: .beginning)
                 let secondView = viewForIndex(1, location: .beginning)
-                self.views = Views.two(firstView: firstView, secondView: secondView)
+                views = Views.two(firstView: firstView, secondView: secondView)
             } else {
                 let firstView = viewForIndex(0, location: .end)
                 let secondView = viewForIndex(1, location: .beginning)
-                self.views = Views.two(firstView: firstView, secondView: secondView)
+                views = Views.two(firstView: firstView, secondView: secondView)
             }
         default:
-            let currentView = viewForIndex(self.index, location: .beginning)
-            if self.index == 0 {
+            let currentView = viewForIndex(index, location: .beginning)
+            if index == 0 {
                 self.views = Views.many(
                     currentView: currentView,
                     otherViews: Disjunction.second(value:
-                        viewForIndex(self.index + 1, location: .beginning)))
-            } else if self.index == self.viewCount - 1 {
-                self.views = Views.many(
+                        viewForIndex(index + 1, location: .beginning)))
+            } else if index == viewCount - 1 {
+                views = Views.many(
                     currentView: currentView,
                     otherViews: Disjunction.first(value:
-                        viewForIndex(self.index - 1, location: .end)))
+                        viewForIndex(index - 1, location: .end)))
             } else {
-                self.views = Views.many(
+                views = Views.many(
                     currentView: currentView,
                     otherViews: Disjunction.both(
-                        first: viewForIndex(self.index - 1, location: .end),
-                        second: viewForIndex(self.index + 1, location: .beginning)))
+                        first: viewForIndex(index - 1, location: .end),
+                        second: viewForIndex(index + 1, location: .beginning)))
             }
         }
-
-        self.syncSubviews()
-        self.setNeedsLayout()
+        syncSubviews()
+        setNeedsLayout()
     }
 
+    // TODO: replace webview specifique stuff but some generique protocol.
+    // These message handler need to be cleaned else we have a strong reference cycle.
     private func syncSubviews() {
-        for view in self.scrollView.subviews {
-            view.removeFromSuperview()
-        }
-
-        if let viewArray = self.views?.array {
-            for view in viewArray {
-                self.scrollView.addSubview(view)
+        scrollView.subviews.forEach({
+            if let webview = ($0 as? WebView) {
+                webview.removeMessageHandlers()
             }
+            $0.removeFromSuperview()
+        })
+
+        if let viewArray = views?.array {
+            viewArray.forEach({
+                if let webview = ($0 as? WebView) {
+                    webview.addMessageHandlers()
+                }
+                self.scrollView.addSubview($0)
+            })
         }
     }
 
@@ -221,7 +234,7 @@ final class TriptychView: UIView {
     ///
     /// - Parameter nextIndex: The target index.
     func moveToIndex(_ nextIndex: Int) {
-        if self.index == nextIndex, nextIndex > 0, nextIndex < viewCount {
+        if index == nextIndex, nextIndex > 0, nextIndex < viewCount {
             return
         }
         let previousIndex = index
@@ -231,53 +244,69 @@ final class TriptychView: UIView {
     }
 }
 
+extension TriptychView: ViewDelegate {
+    func displayPreviousView() {
+
+        moveToIndex(index - 1)
+    }
+
+    func displayNextView() {
+        moveToIndex(index + 1)
+    }
+
+    func centerAreaTapped() {
+        delegate?.centerTapped()
+    }
+}
+
 extension TriptychView: UIScrollViewDelegate {
 
     public func scrollViewDidScroll(_ scrollView: UIScrollView) {
-        guard let views = self.views else {
+        guard let views = views else {
             return
         }
 
         if views.count == 3 {
-            let width = self.frame.size.width
-            let xOffset = self.scrollView.contentOffset.x
+            let width = frame.size.width
+            let xOffset = scrollView.contentOffset.x
 
-            switch self.clamping {
+            switch clamping {
             case .none:
                 if xOffset < width {
-                    self.clamping = .onlyPrevious
+                    clamping = .onlyPrevious
                 } else if xOffset > width {
-                    self.clamping = .onlyNext
+                    clamping = .onlyNext
                 }
             case .onlyPrevious:
-                self.scrollView.contentOffset.x = min(xOffset, width)
+                scrollView.contentOffset.x = min(xOffset, width)
             case .onlyNext:
-                self.scrollView.contentOffset.x = max(xOffset, width)
+                scrollView.contentOffset.x = max(xOffset, width)
             }
         }
     }
 
     public func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
 
-        self.clamping = .none
+        clamping = .none
 
-        let previousIndex = self.index
+        let previousIndex = index
 
-        let pageOffset = Int(round(scrollView.contentOffset.x / self.scrollView.frame.width))
+        let pageOffset = Int(round(scrollView.contentOffset.x / scrollView.frame.width))
+
         if pageOffset == 0 {
-            if self.index > 0 {
-                self.index -= 1
+            if index > 0 {
+                index -= 1
             }
         } else if pageOffset == 1 {
-            if self.index == 0 {
-                self.index += 1
+            if index == 0 {
+                index += 1
             }
         } else {
             assert(pageOffset == 2)
-            self.index += 1
+            index += 1
         }
 
-        self.updateViews(previousIndex: previousIndex)
+        updateViews(previousIndex: previousIndex)
 
         // This works around a very specific case that may be a bug in iOS's scroll
         // view implementation. If the user is on a view of index >= 1, and if the
@@ -290,9 +319,9 @@ extension TriptychView: UIScrollViewDelegate {
         // that is _not_ a page boundary. The conditional guard here prevents
         // animating if the offset is already correct because otherwise doing so may
         // result in a visual glitch (also for unknown reasons).
-        if(fmod(scrollView.contentOffset.x, self.scrollView.frame.width) != 0.0) {
-            self.scrollView.setContentOffset(
-                .init(x: CGFloat(pageOffset) * self.scrollView.frame.width, y: 0),
+        if(fmod(scrollView.contentOffset.x, scrollView.frame.width) != 0.0) {
+            scrollView.setContentOffset(
+                .init(x: CGFloat(pageOffset) * scrollView.frame.width, y: 0),
                 animated: true)
         }
     }
