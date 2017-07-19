@@ -4,6 +4,7 @@ import WebKit
 
 public protocol NavigatorDelegate: class {
     func middleTapHandler()
+    func positionUpdate()
 }
 
 open class NavigatorViewController: UIViewController {
@@ -13,16 +14,27 @@ open class NavigatorViewController: UIViewController {
     public let publication: Publication
     public weak var delegate: NavigatorDelegate?
 
+    public var currentPosition: Int? {
+        didSet {
+            delegate?.positionUpdate()
+        }
+    }
+    public var maxPosition: Int? {
+        didSet {
+            delegate?.positionUpdate()
+        }
+    }
+
     public init(for publication: Publication, initialIndex: Int) {
         self.publication = publication
         delegatee = Delegatee()
         let defaults = UserDefaults.standard
         var index = initialIndex
 
+        /// TODO: change, the user can't specify opening at index 0 right now.
         if index == 0 {
             let savedIndex = defaults.integer(forKey: "\(String(describing: publication.metadata.identifier))-lastIndex")
 
-            print(savedIndex)
             index = savedIndex
         }
 
@@ -37,10 +49,6 @@ open class NavigatorViewController: UIViewController {
 
         defaults.set(triptychView.index,
                      forKey: "\(String(describing: publication.metadata.identifier))-lastIndex")
-//        let test = triptychView.currentViewRegionIndex()
-//
-//        defaults.set(test,
-//                     forKey: "\(String(describing: publication.metadata.identifier))-lastRegion")
     }
 
     @available(*, unavailable)
@@ -55,6 +63,7 @@ open class NavigatorViewController: UIViewController {
         triptychView.frame = view.bounds
         triptychView.autoresizingMask = [.flexibleHeight, .flexibleWidth]
         view.addSubview(triptychView)
+        delegate?.positionUpdate()
     }
 }
 
@@ -81,6 +90,7 @@ extension NavigatorViewController {
             return
         }
         triptychView.moveToIndex(index)
+        delegate?.positionUpdate()
     }
 
     public func getSpine() -> [Link] {
@@ -129,5 +139,10 @@ extension Delegatee: TriptychViewDelegate {
 
         defaults.set(position,
                      forKey: "\(String(describing: publicationIdentifier))-lastPosition")
+        parent.currentPosition = position
+    }
+
+    public func updateTotalPositions(_ positions: Int) {
+        parent.maxPosition = positions
     }
 }

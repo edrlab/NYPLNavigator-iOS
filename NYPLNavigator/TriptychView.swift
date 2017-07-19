@@ -11,6 +11,7 @@ protocol TriptychViewDelegate: class {
     func centerTapped()
 
     func updateLastPosition(_ position: Int)
+    func updateTotalPositions(_ positions: Int)
 }
 
 protocol ViewDelegate: class {
@@ -18,6 +19,7 @@ protocol ViewDelegate: class {
     func displayPreviousView()
     func centerAreaTapped()
     func updateLastPosition(_ position: Int)
+    func updateTotalPositions(_ positions: Int)
 }
 
 final class TriptychView: UIView {
@@ -293,6 +295,10 @@ extension TriptychView: ViewDelegate {
 
     func updateLastPosition(_ position: Int) {
         delegate?.updateLastPosition(position)
+    }
+
+    func updateTotalPositions(_ positions: Int) {
+        delegate?.updateTotalPositions(positions)
     }
 }
 

@@ -8,12 +8,8 @@ final class WebView: WKWebView {
 
     fileprivate let initialLocation: BinaryLocation
     internal var lastPosition: Int?
-    
-    public var totalPositions: Int = 0 {
-        didSet {
-            print("pages -- \(totalPositions)")
-        }
-    }
+
+    public var totalPositions: Int = 0
 
     public func currentPosition() -> Int {
         return Int(round(scrollView.contentOffset.x / scrollView.frame.width))
@@ -124,6 +120,9 @@ extension WebView: WKNavigationDelegate {
                 let scrollViewTotalWidth = Double(resultString)!
 
                 self.totalPositions = Int(ceil(scrollViewTotalWidth / scrollViewPageWidth))
+
+                
+                //self.viewDelegate?.updateTotalPositions(self.totalPositions)
             }
         }
 
