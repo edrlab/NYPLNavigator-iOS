@@ -8,7 +8,7 @@ protocol ViewDelegate: class {
     func displayNextDocument()
     func displayPreviousDocument()
     func handleCenterTap()
-//    func currentDocumentProgressionChanged(_ current: Int, _ total: Int)
+    func publicationIdentifier() -> String?
 }
 
 final class WebView: WKWebView {
@@ -19,8 +19,10 @@ final class WebView: WKWebView {
 
     fileprivate let initialLocation: BinaryLocation
 
+    public var savedProgression: Double? = nil
+
     // Max number of screen for representing the html document.
-    public var totalScreens: Int = 0
+    public var totalScreens = 0
     // Currently displayed screen Index.
     public func currentScreenIndex() -> Int {
         return Int(round(scrollView.contentOffset.x / scrollView.frame.width))
@@ -88,13 +90,21 @@ extension WebView {
         let regionIndexPoint = CGPoint(x: offset, y: 0)
 
         scrollView.setContentOffset(regionIndexPoint, animated: animated)
-//        updateProgression()
+        // Update the DocumentProgression in the userDefault when the user tap.
+        updateProgression()
     }
 
+    /// Save current document progression in the userDefault for later reopening
+    /// of the book.
+    fileprivate func updateProgression() {
+        guard let publicationIdentifier = viewDelegate?.publicationIdentifier() else {
+            return
+        }
+        let progression = Double(currentScreenIndex()) / Double(totalScreens)
 
-//    fileprivate func updateProgression() {
-//        viewDelegate?.currentDocumentProgressionChanged(currentScreenIndex(), totalScreens)
-//    }
+        UserDefaults.standard.set(progression,
+                                  forKey: "\(publicationIdentifier)-documentProgression")
+    }
 }
 
 // MARK: - WKScriptMessageHandler for handling incoming message from the Bridge.js
@@ -141,28 +151,23 @@ extension WebView: WKNavigationDelegate {
 
                 self.totalScreens = Int(ceil(scrollViewTotalWidth / scrollViewPageWidth))
             }
-//            /// If the user already browsed the book then the last position has been saved.
-//            if self.savedProgression != nil && self.savedProgression! > 0.0 {
-//                let lastScreen = floor(Double(self.totalScreens - 1) * self.savedProgression!)
-//
-//                let offset = lastScreen * scrollViewPageWidth
-//
-//                self.evaluateJavaScript("document.body.scrollLeft = \(offset)", completionHandler: { _ in
-//                    self.updateProgression()
-//                })
-//                return
-//            }
+            /// If the savedProgression property has been set by the navigator.
+            /// (means this webview is the first webView to appear).
+            if self.savedProgression != nil && self.savedProgression! > 0.0 {
+                let lastScreen = floor(Double(self.totalScreens) * self.savedProgression!)
+
+                let offset = lastScreen * scrollViewPageWidth
+
+                self.evaluateJavaScript("document.body.scrollLeft = \(offset)", completionHandler: nil)
+                return
+            }
         }
 
         switch self.initialLocation {
         case .beginning:
-            evaluateJavaScript("document.body.scrollLeft = 0", completionHandler: { _ in
-//                self.updateProgression()
-            })
+            evaluateJavaScript("document.body.scrollLeft = 0", completionHandler: nil)
         case .end:
-            evaluateJavaScript("document.body.scrollLeft = document.body.scrollWidth", completionHandler: { _ in
-//                self.updateProgression()
-            })
+            evaluateJavaScript("document.body.scrollLeft = document.body.scrollWidth", completionHandler: nil)
         }
     }
 
@@ -183,6 +188,7 @@ extension WebView: UIScrollViewDelegate {
     }
 
     func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
-//        updateProgression()
+        // Update the DocumentProgression in userDefault when user swipe.
+        updateProgression()
     }
 }

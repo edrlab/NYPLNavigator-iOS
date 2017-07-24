@@ -4,7 +4,6 @@ import WebKit
 
 public protocol NavigatorDelegate: class {
     func middleTapHandler()
-//    func currentDocumentProgressionDidChange()
 }
 
 open class NavigatorViewController: UIViewController {
@@ -13,19 +12,6 @@ open class NavigatorViewController: UIViewController {
     //
     public let publication: Publication
     public weak var delegate: NavigatorDelegate?
-
-//    /// Give the index of the current screen for the currently displayed document.
-//    public var currentScreenInDocument: Int? {
-//        didSet {
-//            delegate?.currentDocumentProgressionDidChange()
-//        }
-//    }
-//    /// Give the total numbers of screen for the currently displayed document.
-//    public var totalScreenInDocument: Int? = 0 {
-//        didSet {
-//            delegate?.currentDocumentProgressionDidChange()
-//        }
-//    }
 
     /// - Parameters:
     ///   - publication: The publication.
@@ -106,18 +92,9 @@ extension NavigatorViewController: ViewDelegate {
         delegate?.middleTapHandler()
     }
 
-//    func currentDocumentProgressionChanged(_ current: Int, _ total: Int) {
-//        let publicationIdentifier = publication.metadata.identifier!
-//
-//        currentScreenInDocument = current + 1
-//        totalScreenInDocument = total
-//        if total != 0 {
-//            let progression = Double(currentScreenInDocument!) / Double(total)
-//
-//            UserDefaults.standard.set(progression,
-//                                      forKey: "\(publicationIdentifier)-documentProgression")
-//        }
-//    }
+    func publicationIdentifier() -> String? {
+        return publication.metadata.identifier
+    }
 }
 
 /// Used to hide conformance to package-private delegate protocols.
@@ -139,15 +116,15 @@ extension Delegatee: TriptychViewDelegate {
             webView.viewDelegate = parent
             webView.load(urlRequest)
 
-//            // Load last saved regionIndex for the first view.
-//            if firstView {
-//                firstView = false
-//                let defaults = UserDefaults.standard
-//                let publicationIdentifier = parent.publication.metadata.identifier!
-//                let savedProgression = defaults.double(forKey: "\(publicationIdentifier)-documentProgression")
-//
-//                webView.savedProgression = savedProgression
-//            }
+            // Load last saved regionIndex for the first view.
+            if firstView {
+                firstView = false
+                let defaults = UserDefaults.standard
+                let publicationIdentifier = parent.publication.metadata.identifier!
+                let savedProgression = defaults.double(forKey: "\(publicationIdentifier)-documentProgression")
+
+                webView.savedProgression = savedProgression
+            }
         }
         return webView
     }
