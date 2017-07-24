@@ -7,19 +7,6 @@ protocol TriptychViewDelegate: class {
         viewForIndex index: Int,
         location: BinaryLocation)
         -> UIView
-
-    func centerTapped()
-
-    func updateLastPosition(_ position: Int)
-    func updateTotalPositions(_ positions: Int)
-}
-
-protocol ViewDelegate: class {
-    func displayNextView()
-    func displayPreviousView()
-    func centerAreaTapped()
-    func updateLastPosition(_ position: Int)
-    func updateTotalPositions(_ positions: Int)
 }
 
 final class TriptychView: UIView {
@@ -215,7 +202,7 @@ final class TriptychView: UIView {
         setNeedsLayout()
     }
 
-    // TODO: replace webview specifique stuff w/ some generique protocol.
+    // TO/DO: replace webview specifique stuff w/ some generique protocol.
     // These message handler need to be cleaned else we have a strong reference cycle.
     private func syncSubviews() {
         scrollView.subviews.forEach({
@@ -272,33 +259,9 @@ final class TriptychView: UIView {
         index = nextIndex
         updateViews(previousIndex: previousIndex)
     }
-}
 
-extension TriptychView: ViewDelegate {
-    func displayPreviousView() {
-        guard index > 0 else {
-            return
-        }
-        moveToIndex(index - 1)
-    }
-
-    func displayNextView() {
-        guard  (index + 1) < viewCount else {
-            return
-        }
-        moveToIndex(index + 1)
-    }
-
-    func centerAreaTapped() {
-        delegate?.centerTapped()
-    }
-
-    func updateLastPosition(_ position: Int) {
-        delegate?.updateLastPosition(position)
-    }
-
-    func updateTotalPositions(_ positions: Int) {
-        delegate?.updateTotalPositions(positions)
+    public func isCurrentIndex(_ index: Int) -> Bool {
+        return (index == self.index)
     }
 }
 

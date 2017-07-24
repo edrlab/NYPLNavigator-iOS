@@ -1,80 +1,100 @@
+//
+//
+//
+
 import WebKit
+
+protocol ViewDelegate: class {
+    func displayNextDocument()
+    func displayPreviousDocument()
+    func handleCenterTap()
+//    func currentDocumentProgressionChanged(_ current: Int, _ total: Int)
+}
 
 final class WebView: WKWebView {
 
-    let jsEvents = ["leftTap": leftTapHandler,
-                      "centerTap": centerTapHandler,
-                      "rightTap": rightTapHandler]
+    let jsEvents = ["leftTap": leftTapped,
+                      "centerTap": centerTapped,
+                      "rightTap": rightTapped]
 
     fileprivate let initialLocation: BinaryLocation
-    internal var lastPosition: Int?
 
-    public var totalPositions: Int = 0
-
-    public func currentPosition() -> Int {
+    // Max number of screen for representing the html document.
+    public var totalScreens: Int = 0
+    // Currently displayed screen Index.
+    public func currentScreenIndex() -> Int {
         return Int(round(scrollView.contentOffset.x / scrollView.frame.width))
     }
 
     public weak var viewDelegate: ViewDelegate?
 
     init(frame: CGRect, initialLocation: BinaryLocation) {
-//        let configuration = WKWebViewConfiguration()
-//        let contentController = WKUserContentController()
-//
-//        // Add the Bridge.js file to the webview.
-//        if let bundle = Bundle.init(identifier: "org.nypl.simplified.NYPLNavigator"),
-//            let bridgeFilePath = bundle.path(forResource: "Bridge", ofType: "js"),
-//            let js = try? String(contentsOfFile: bridgeFilePath) {
-//            let userScript = WKUserScript(source: js,
-//                                          injectionTime: .atDocumentEnd,
-//                                          forMainFrameOnly: false)
-//            contentController.addUserScript(userScript)
-//        }
-//
-//        configuration.userContentController = contentController
         self.initialLocation = initialLocation
         super.init(frame: frame, configuration: .init())
-
-        navigationDelegate = self
 
         scrollView.delegate = self
         scrollView.bounces = false
         scrollView.isPagingEnabled = true
         scrollView.showsHorizontalScrollIndicator = false
+        navigationDelegate = self
     }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
+}
 
-    func leftTapHandler(body: String) {
-        guard currentPosition() > 0 else {
-            viewDelegate?.displayPreviousView()
+extension WebView {
+
+    /// Called from the JS code when a tap is detected in the 2/10 left 
+    /// part of the screen.
+    ///
+    /// - Parameter body: Unused.
+    func leftTapped(body: String) {
+        let index = currentScreenIndex()
+
+        guard index > 0 else {
+            viewDelegate?.displayPreviousDocument()
             return
         }
-        moveTo(regionIndex: currentPosition() - 1)
+        moveTo(screenIndex: index - 1)
     }
 
-    func centerTapHandler(body: String) {
-        viewDelegate?.centerAreaTapped()
-    }
+    /// Called from the JS code when a tap is detected in the 2/10 right
+    /// part of the screen.
+    ///
+    /// - Parameter body: Unused.
+    func rightTapped(body: String) {
+        let index = currentScreenIndex()
 
-    func rightTapHandler(body: String) {
-        guard currentPosition() < totalPositions - 1 else {
-            viewDelegate?.displayNextView()
+        guard index < totalScreens - 1 else {
+            viewDelegate?.displayNextDocument()
             return
         }
-        moveTo(regionIndex: currentPosition() + 1)
+        moveTo(screenIndex: index + 1)
     }
 
-    internal func moveTo(regionIndex: Int, animated: Bool = false) {
-        let offset = Int(scrollView.frame.size.width) * regionIndex
+    /// Called from the JS code when a tap is detected in the 6/10 center
+    /// part of the screen.
+    ///
+    /// - Parameter body: Unused.
+    func centerTapped(body: String) {
+        viewDelegate?.handleCenterTap()
+    }
+
+    internal func moveTo(screenIndex: Int, animated: Bool = false) {
+        let offset = Int(scrollView.frame.size.width) * screenIndex
         let regionIndexPoint = CGPoint(x: offset, y: 0)
 
         scrollView.setContentOffset(regionIndexPoint, animated: animated)
-        viewDelegate?.updateLastPosition(currentPosition())
+//        updateProgression()
     }
+
+
+//    fileprivate func updateProgression() {
+//        viewDelegate?.currentDocumentProgressionChanged(currentScreenIndex(), totalScreens)
+//    }
 }
 
 // MARK: - WKScriptMessageHandler for handling incoming message from the Bridge.js
@@ -119,25 +139,30 @@ extension WebView: WKNavigationDelegate {
                 let resultString = String(describing: result)
                 let scrollViewTotalWidth = Double(resultString)!
 
-                self.totalPositions = Int(ceil(scrollViewTotalWidth / scrollViewPageWidth))
-
-                
-                //self.viewDelegate?.updateTotalPositions(self.totalPositions)
+                self.totalScreens = Int(ceil(scrollViewTotalWidth / scrollViewPageWidth))
             }
+//            /// If the user already browsed the book then the last position has been saved.
+//            if self.savedProgression != nil && self.savedProgression! > 0.0 {
+//                let lastScreen = floor(Double(self.totalScreens - 1) * self.savedProgression!)
+//
+//                let offset = lastScreen * scrollViewPageWidth
+//
+//                self.evaluateJavaScript("document.body.scrollLeft = \(offset)", completionHandler: { _ in
+//                    self.updateProgression()
+//                })
+//                return
+//            }
         }
 
-        /// If the user already browsed the book then the last position has been saved.
-        if lastPosition != nil {
-            let offset = Double(lastPosition!) * scrollViewPageWidth
-
-            evaluateJavaScript("document.body.scrollLeft = \(offset)", completionHandler: nil)
-            return
-        }
         switch self.initialLocation {
         case .beginning:
-            evaluateJavaScript("document.body.scrollLeft = 0", completionHandler: nil)
+            evaluateJavaScript("document.body.scrollLeft = 0", completionHandler: { _ in
+//                self.updateProgression()
+            })
         case .end:
-            evaluateJavaScript("document.body.scrollLeft = document.body.scrollWidth", completionHandler: nil)
+            evaluateJavaScript("document.body.scrollLeft = document.body.scrollWidth", completionHandler: { _ in
+//                self.updateProgression()
+            })
         }
     }
 
@@ -158,6 +183,6 @@ extension WebView: UIScrollViewDelegate {
     }
 
     func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
-        viewDelegate?.updateLastPosition(currentPosition())
+//        updateProgression()
     }
 }

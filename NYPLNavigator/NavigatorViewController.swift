@@ -4,7 +4,7 @@ import WebKit
 
 public protocol NavigatorDelegate: class {
     func middleTapHandler()
-    func positionUpdate()
+//    func currentDocumentProgressionDidChange()
 }
 
 open class NavigatorViewController: UIViewController {
@@ -14,26 +14,31 @@ open class NavigatorViewController: UIViewController {
     public let publication: Publication
     public weak var delegate: NavigatorDelegate?
 
-    public var currentPosition: Int? {
-        didSet {
-            delegate?.positionUpdate()
-        }
-    }
-    public var maxPosition: Int? {
-        didSet {
-            delegate?.positionUpdate()
-        }
-    }
+//    /// Give the index of the current screen for the currently displayed document.
+//    public var currentScreenInDocument: Int? {
+//        didSet {
+//            delegate?.currentDocumentProgressionDidChange()
+//        }
+//    }
+//    /// Give the total numbers of screen for the currently displayed document.
+//    public var totalScreenInDocument: Int? = 0 {
+//        didSet {
+//            delegate?.currentDocumentProgressionDidChange()
+//        }
+//    }
 
+    /// - Parameters:
+    ///   - publication: The publication.
+    ///   - initialIndex: Inital index of -1 will open the publication's document
+    ///                   to last opened place or 0.
     public init(for publication: Publication, initialIndex: Int) {
         self.publication = publication
         delegatee = Delegatee()
-        let defaults = UserDefaults.standard
         var index = initialIndex
 
-        /// TODO: change, the user can't specify opening at index 0 right now.
-        if index == 0 {
-            let savedIndex = defaults.integer(forKey: "\(String(describing: publication.metadata.identifier))-lastIndex")
+        if index == -1 {
+            let publicationIdentifier = publication.metadata.identifier!
+            let savedIndex = UserDefaults.standard.integer(forKey: "\(publicationIdentifier)-lastDocument")
 
             index = savedIndex
         }
@@ -45,10 +50,11 @@ open class NavigatorViewController: UIViewController {
     }
 
     deinit {
-        let defaults = UserDefaults.standard
+        /// Saves the index of the last read spineItem.
+        let publicationIdentifier = publication.metadata.identifier!
 
-        defaults.set(triptychView.index,
-                     forKey: "\(String(describing: publication.metadata.identifier))-lastIndex")
+        UserDefaults.standard.set(triptychView.index,
+                     forKey: "\(publicationIdentifier)-lastDocument")
     }
 
     @available(*, unavailable)
@@ -63,24 +69,11 @@ open class NavigatorViewController: UIViewController {
         triptychView.frame = view.bounds
         triptychView.autoresizingMask = [.flexibleHeight, .flexibleWidth]
         view.addSubview(triptychView)
-        delegate?.positionUpdate()
     }
 }
 
 extension NavigatorViewController {
 
-    /// Display next spine item.
-    public func displayNextSpineItem() {
-        displaySpineItem(at: triptychView.index + 1)
-    }
-
-    /// Display previous spine item.
-    public func displayPreviousSpineItem() {
-        displaySpineItem(at: triptychView.index - 1)
-    }
-
-    /// TOFIX: Doesn't work properly. Winnie says that's it's related to the 
-    /// preloading changes.
     /// [Safe] Display the spine item at `index`.
     ///
     /// - Parameter index: The index of the spine item to display.
@@ -90,12 +83,41 @@ extension NavigatorViewController {
             return
         }
         triptychView.moveToIndex(index)
-        delegate?.positionUpdate()
     }
 
     public func getSpine() -> [Link] {
         return publication.spine
     }
+}
+
+extension NavigatorViewController: ViewDelegate {
+
+    /// Display next spine item.
+    public func displayNextDocument() {
+        displaySpineItem(at: triptychView.index + 1)
+    }
+
+    /// Display previous spine item.
+    public func displayPreviousDocument() {
+        displaySpineItem(at: triptychView.index - 1)
+    }
+
+    func handleCenterTap() {
+        delegate?.middleTapHandler()
+    }
+
+//    func currentDocumentProgressionChanged(_ current: Int, _ total: Int) {
+//        let publicationIdentifier = publication.metadata.identifier!
+//
+//        currentScreenInDocument = current + 1
+//        totalScreenInDocument = total
+//        if total != 0 {
+//            let progression = Double(currentScreenInDocument!) / Double(total)
+//
+//            UserDefaults.standard.set(progression,
+//                                      forKey: "\(publicationIdentifier)-documentProgression")
+//        }
+//    }
 }
 
 /// Used to hide conformance to package-private delegate protocols.
@@ -105,44 +127,28 @@ private final class Delegatee: NSObject {
 }
 
 extension Delegatee: TriptychViewDelegate {
+
     public func triptychView(_ view: TriptychView, viewForIndex index: Int,
                              location: BinaryLocation) -> UIView {
         let webView = WebView(frame: view.bounds, initialLocation: location)
         let link = parent.publication.spine[index]
 
-//        webview.delegate = parent
         if let url = parent.publication.uriTo(link: link) {
             let urlRequest = URLRequest(url: url)
 
-            webView.viewDelegate = view
+            webView.viewDelegate = parent
             webView.load(urlRequest)
-            // Load last saved regionIndex for the first view.
-            if firstView {
-                firstView = false
-                let defaults = UserDefaults.standard
-                let publicationIdentifier = parent.publication.metadata.identifier
-                let savedPosition = defaults.integer(forKey: "\(String(describing: publicationIdentifier))-lastPosition")
 
-                webView.lastPosition = savedPosition
-            }
+//            // Load last saved regionIndex for the first view.
+//            if firstView {
+//                firstView = false
+//                let defaults = UserDefaults.standard
+//                let publicationIdentifier = parent.publication.metadata.identifier!
+//                let savedProgression = defaults.double(forKey: "\(publicationIdentifier)-documentProgression")
+//
+//                webView.savedProgression = savedProgression
+//            }
         }
         return webView
-    }
-
-    public func centerTapped() {
-        parent.delegate?.middleTapHandler()
-    }
-
-    public func updateLastPosition(_ position: Int) {
-        let publicationIdentifier = parent.publication.metadata.identifier
-        let defaults = UserDefaults.standard
-
-        defaults.set(position,
-                     forKey: "\(String(describing: publicationIdentifier))-lastPosition")
-        parent.currentPosition = position
-    }
-
-    public func updateTotalPositions(_ positions: Int) {
-        parent.maxPosition = positions
     }
 }
