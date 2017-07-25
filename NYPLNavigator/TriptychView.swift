@@ -112,6 +112,7 @@ final class TriptychView: UIView {
         scrollView.autoresizingMask = [.flexibleHeight, .flexibleWidth]
         scrollView.isPagingEnabled = true
         scrollView.bounces = false
+        scrollView.showsHorizontalScrollIndicator = false
         addSubview(scrollView)
     }
 
@@ -238,8 +239,8 @@ final class TriptychView: UIView {
 
         if let viewArray = views?.array {
             viewArray.forEach({
-                if let webview = ($0 as? WebView) {
-                    webview.addMessageHandlers()
+                if $0 == currentView, let webView = ($0 as? WebView) {
+                    webView.addMessageHandlers()
                 }
                 self.scrollView.addSubview($0)
             })
