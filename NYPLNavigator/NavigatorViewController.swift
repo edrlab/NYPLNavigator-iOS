@@ -71,6 +71,26 @@ extension NavigatorViewController {
         triptychView.moveToIndex(index)
     }
 
+    /// Load resource with the corresponding href.
+    ///
+    /// - Parameter href: The href of the resource to load. Can contain a tag id.
+    public func displaySpineItem(with href: String) {
+        // remove id if any
+        let components = href.components(separatedBy: "#")
+        guard let href = components.first else {
+            return
+        }
+        guard let index = publication.spine.index(where: { $0.href?.contains(href) ?? false }) else {
+            return
+        }
+        triptychView.moveToIndex(index)
+
+        guard let id = components.last else {
+            return
+        }
+        (triptychView.currentView as! WebView).scroll(to: id)
+    }
+
     public func getSpine() -> [Link] {
         return publication.spine
     }

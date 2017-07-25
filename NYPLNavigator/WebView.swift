@@ -94,6 +94,12 @@ extension WebView {
         updateProgression()
     }
 
+    internal func scroll(to tagId: String) {
+        evaluateJavaScript("document.getElementById('\(tagId)').scrollIntoView(true);", completionHandler: { _ in
+            self.updateProgression()
+        })
+    }
+
     /// Save current document progression in the userDefault for later reopening
     /// of the book.
     fileprivate func updateProgression() {

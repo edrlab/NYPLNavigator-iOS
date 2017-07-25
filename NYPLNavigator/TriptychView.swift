@@ -17,6 +17,8 @@ final class TriptychView: UIView {
         case onlyNext
     }
 
+    /// The array containing the Views for the current document, and possibly for
+    /// the next and previous or other kind of preloading.
     fileprivate enum Views {
         case one(view: UIView)
         case two(firstView: UIView, secondView: UIView)
@@ -202,8 +204,8 @@ final class TriptychView: UIView {
         setNeedsLayout()
     }
 
-    // TO/DO: replace webview specifique stuff w/ some generique protocol.
-    // These message handler need to be cleaned else we have a strong reference cycle.
+    // TO/DO: replace webview specific stuff w/ some generique protocol.
+    // These message handlers need to be cleaned else we have a strong reference cycle.
     private func syncSubviews() {
         scrollView.subviews.forEach({
             if let webview = ($0 as? WebView) {
@@ -229,39 +231,19 @@ final class TriptychView: UIView {
         if index == nextIndex, nextIndex > 0, nextIndex < viewCount {
             return
         }
-
-        ///
-        guard let views = views else {
-            return
-        }
-        if views.count == 3 {
-            let width = frame.size.width
-            let xOffset = scrollView.contentOffset.x
-
-            switch clamping {
-            case .none:
-                if xOffset < width {
-                    clamping = .onlyPrevious
-                } else if xOffset > width {
-                    clamping = .onlyNext
-                }
-            case .onlyPrevious:
-                scrollView.contentOffset.x = min(xOffset, width)
-            case .onlyNext:
-                scrollView.contentOffset.x = max(xOffset, width)
-            }
-        }
-
-        clamping = .none
-        ///
         let previousIndex = index
 
         index = nextIndex
+        /// [Hack?] Emulate a 1px non animated swipe to render the views properly.
+        /// There must be a better solution, but working for now...
+        if previousIndex < nextIndex {
+            scrollView.setContentOffset(CGPoint(x: scrollView.contentOffset.x + 1,
+                                                y: 0), animated: false)
+        } else {
+            scrollView.setContentOffset(CGPoint(x: scrollView.contentOffset.x - 1,
+                                                y: 0), animated: false)
+        }
         updateViews(previousIndex: previousIndex)
-    }
-
-    public func isCurrentIndex(_ index: Int) -> Bool {
-        return (index == self.index)
     }
 }
 
