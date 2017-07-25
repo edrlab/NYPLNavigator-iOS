@@ -94,6 +94,10 @@ extension NavigatorViewController {
     public func getSpine() -> [Link] {
         return publication.spine
     }
+
+    public func getTableOfContents() -> [Link] {
+        return publication.tableOfContents
+    }
 }
 
 extension NavigatorViewController: ViewDelegate {
