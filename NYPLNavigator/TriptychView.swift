@@ -54,6 +54,28 @@ final class TriptychView: UIView {
         }
     }
 
+    /// Return the currently presented view from the Views array.
+    var currentView: UIView? {
+        switch self.views {
+        case nil:
+            return nil
+        case let .some(.one(a)):
+            // [?]
+            return a
+        case let .some(.two(a, b)):
+            // [?, ?]
+            return self.index == 0 ? a : b
+        case let .some(.many(a, .first(b))):
+            // [?, ?, -, ... -, ?, ?]
+            return self.index == 0 ? a : b
+        case let .some(.many(a, .both)):
+            // [... , -, ?, a, ?, -, ...]
+            return a
+        case let .some(.many(a, .second(b))):
+            return self.index == self.viewCount - 1 ? b : a
+        }
+    }
+
     public weak var delegate: TriptychViewDelegate? {
         didSet {
             self.updateViews()
