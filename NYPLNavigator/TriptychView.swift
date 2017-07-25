@@ -239,7 +239,7 @@ final class TriptychView: UIView {
 
         if let viewArray = views?.array {
             viewArray.forEach({
-                if $0 == currentView, let webView = ($0 as? WebView) {
+                if let webView = ($0 as? WebView) {
                     webView.addMessageHandlers()
                 }
                 self.scrollView.addSubview($0)
