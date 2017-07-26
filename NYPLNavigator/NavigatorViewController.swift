@@ -131,7 +131,7 @@ extension Delegatee: TriptychViewDelegate {
 
     public func triptychView(_ view: TriptychView, viewForIndex index: Int,
                              location: BinaryLocation) -> UIView {
-        let webView = WebView(frame: view.bounds, initialLocation: location)
+        let webView = WebView(frame: view.bounds, initialPosition: location)
         let link = parent.publication.spine[index]
 
         if let url = parent.publication.uriTo(link: link) {
@@ -147,7 +147,7 @@ extension Delegatee: TriptychViewDelegate {
                 let publicationIdentifier = parent.publication.metadata.identifier!
                 let savedProgression = defaults.double(forKey: "\(publicationIdentifier)-documentProgression")
 
-                webView.savedProgression = savedProgression
+                webView.initialPositionOverride = savedProgression
             }
         }
         return webView

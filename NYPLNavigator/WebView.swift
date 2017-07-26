@@ -17,9 +17,9 @@ final class WebView: WKWebView {
                       "centerTap": centerTapped,
                       "rightTap": rightTapped]
 
-    fileprivate let initialLocation: BinaryLocation
+    fileprivate let initialPosition: BinaryLocation
 
-    public var savedProgression: Double?
+    public var initialPositionOverride: Double?
 
     // Max number of screen for representing the html document.
     public var totalScreens = 0
@@ -30,8 +30,8 @@ final class WebView: WKWebView {
 
     public weak var viewDelegate: ViewDelegate?
 
-    init(frame: CGRect, initialLocation: BinaryLocation) {
-        self.initialLocation = initialLocation
+    init(frame: CGRect, initialPosition: BinaryLocation) {
+        self.initialPosition = initialPosition
         super.init(frame: frame, configuration: .init())
 
         scrollView.delegate = self
@@ -58,6 +58,7 @@ extension WebView {
 
         guard index > 0 else {
             viewDelegate?.displayPreviousDocument()
+            updateProgression(to: 1.0)
             return
         }
         moveTo(screenIndex: index - 1)
@@ -72,6 +73,7 @@ extension WebView {
 
         guard index < totalScreens - 1 else {
             viewDelegate?.displayNextDocument()
+            updateProgression(to: 0.0)
             return
         }
         moveTo(screenIndex: index + 1)
@@ -88,30 +90,29 @@ extension WebView {
     internal func moveTo(screenIndex: Int, animated: Bool = false) {
         let screenSize = Int(scrollView.frame.size.width)
         let offset = screenSize * screenIndex
-        //let maxOffset = Int(scrollView.contentSize.width) - screenSize
 
-        //let regionIndexPoint = CGPoint(x: min(offset, maxOffset), y: 0)
+        let progression = Double(offset) / Double(scrollView.contentSize.width)
 
-        self.evaluateJavaScript("document.body.scrollLeft = \(offset)", completionHandler: { _ in
-            self.updateProgression()
-        })
-//        scrollView.setContentOffset(regionIndexPoint, animated: animated)
-
+        updateProgression(to: progression)
+        self.evaluateJavaScript("document.body.scrollLeft = \(offset)", completionHandler: nil)
     }
 
     internal func scroll(to tagId: String) {
-        evaluateJavaScript("document.getElementById('\(tagId)').scrollIntoView(true);", completionHandler: { _ in
+        evaluateJavaScript("document.getElementById('\(tagId)').scrollIntoView();", completionHandler: { _ in
             self.updateProgression()
         })
     }
 
     /// Save current document progression in the userDefault for later reopening
     /// of the book.
-    fileprivate func updateProgression() {
+    /// A specific progression can be given, and if not, it will try to determine
+    /// it unprecisely using screenIndex over the total number of screens. 
+    /// (Imprecise cause not always up to date)
+    fileprivate func updateProgression(to value: Double? = nil) {
         guard let publicationIdentifier = viewDelegate?.publicationIdentifier() else {
             return
         }
-        let progression = Double(currentScreenIndex()) / Double(totalScreens)
+        let progression = (value != nil ? value : Double(currentScreenIndex()) / Double(totalScreens))
 
         UserDefaults.standard.set(progression,
                                   forKey: "\(publicationIdentifier)-documentProgression")
@@ -164,17 +165,19 @@ extension WebView: WKNavigationDelegate {
             }
             /// If the savedProgression property has been set by the navigator.
             /// (means this webview is the first webView to appear).
-            if self.savedProgression != nil && self.savedProgression! > 0.0 {
-                let lastScreen = floor(Double(self.totalScreens) * self.savedProgression!)
+            if let initialLocation = self.initialPositionOverride, initialLocation > 0.0 {
+                let lastScreen = floor(Double(self.totalScreens) * initialLocation)
 
                 let offset = lastScreen * scrollViewPageWidth
 
                 self.evaluateJavaScript("document.body.scrollLeft = \(offset)", completionHandler: nil)
-                return
             }
         }
+        if initialPositionOverride != nil {
+            return // Will be handled in the js func above asynchronously.
+        }
 
-        switch self.initialLocation {
+        switch self.initialPosition {
         case .beginning:
             evaluateJavaScript("document.body.scrollLeft = 0", completionHandler: nil)
         case .end:
