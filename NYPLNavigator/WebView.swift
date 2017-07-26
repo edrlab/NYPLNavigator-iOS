@@ -19,7 +19,7 @@ final class WebView: WKWebView {
 
     fileprivate let initialLocation: BinaryLocation
 
-    public var savedProgression: Double? = nil
+    public var savedProgression: Double?
 
     // Max number of screen for representing the html document.
     public var totalScreens = 0
@@ -86,12 +86,17 @@ extension WebView {
     }
 
     internal func moveTo(screenIndex: Int, animated: Bool = false) {
-        let offset = Int(scrollView.frame.size.width) * screenIndex
-        let regionIndexPoint = CGPoint(x: offset, y: 0)
+        let screenSize = Int(scrollView.frame.size.width)
+        let offset = screenSize * screenIndex
+        //let maxOffset = Int(scrollView.contentSize.width) - screenSize
 
-        scrollView.setContentOffset(regionIndexPoint, animated: animated)
-        // Update the DocumentProgression in the userDefault when the user tap.
-        updateProgression()
+        //let regionIndexPoint = CGPoint(x: min(offset, maxOffset), y: 0)
+
+        self.evaluateJavaScript("document.body.scrollLeft = \(offset)", completionHandler: { _ in
+            self.updateProgression()
+        })
+//        scrollView.setContentOffset(regionIndexPoint, animated: animated)
+
     }
 
     internal func scroll(to tagId: String) {

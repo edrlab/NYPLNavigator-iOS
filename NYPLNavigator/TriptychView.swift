@@ -254,18 +254,23 @@ final class TriptychView: UIView {
         if index == nextIndex, nextIndex > 0, nextIndex < viewCount {
             return
         }
-        let previousIndex = index
 
-        index = nextIndex
+        clampingCheck()
         /// [Hack?] Emulate a 1px non animated swipe to render the views properly.
         /// There must be a better solution, but working for now...
-        if previousIndex < nextIndex {
+//        if nextIndex != viewCount - 1, nextIndex != 0 {
+        if index < nextIndex {
             scrollView.setContentOffset(CGPoint(x: scrollView.contentOffset.x + 1,
                                                 y: 0), animated: false)
         } else {
             scrollView.setContentOffset(CGPoint(x: scrollView.contentOffset.x - 1,
                                                 y: 0), animated: false)
         }
+
+        let previousIndex = index
+
+        index = nextIndex
+        clamping = .none
         updateViews(previousIndex: previousIndex)
     }
 }
@@ -273,6 +278,10 @@ final class TriptychView: UIView {
 extension TriptychView: UIScrollViewDelegate {
 
     public func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        clampingCheck()
+    }
+
+    fileprivate func clampingCheck() {
         guard let views = views else {
             return
         }
