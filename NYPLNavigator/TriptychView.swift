@@ -122,7 +122,6 @@ final class TriptychView: UIView {
     }
 
     public override func layoutSubviews() {
-
         if views == nil {
             updateViews()
         }
@@ -246,11 +245,13 @@ final class TriptychView: UIView {
             })
         }
     }
+}
 
+extension TriptychView {
     /// Move to the given index.
     ///
     /// - Parameter nextIndex: The target index.
-    func moveToIndex(_ nextIndex: Int) {
+    internal func moveToIndex(_ nextIndex: Int) {
         if index == nextIndex, nextIndex > 0, nextIndex < viewCount {
             return
         }
@@ -272,7 +273,6 @@ final class TriptychView: UIView {
         clamping = .none
         updateViews(previousIndex: previousIndex)
     }
-    
 }
 
 extension TriptychView: UIScrollViewDelegate {

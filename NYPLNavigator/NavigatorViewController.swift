@@ -102,22 +102,38 @@ extension NavigatorViewController {
 
 extension NavigatorViewController: ViewDelegate {
 
-    /// Display next spine item.
+    /// Display next spine item (spine item).
     public func displayNextDocument() {
         displaySpineItem(at: triptychView.index + 1)
+        updateLastDocument()
     }
 
-    /// Display previous spine item.
+    /// Display previous document (spine item).
     public func displayPreviousDocument() {
         displaySpineItem(at: triptychView.index - 1)
+        updateLastDocument()
     }
 
-    func handleCenterTap() {
+    /// Returns the currently presented Publication's identifier.
+    ///
+    /// - Returns: The publication identifier.
+    public func publicationIdentifier() -> String? {
+        return publication.metadata.identifier
+    }
+
+    internal func handleCenterTap() {
         delegate?.middleTapHandler()
     }
 
-    func publicationIdentifier() -> String? {
-        return publication.metadata.identifier
+    /// Updates the UserDefault lastDocumentKey associated to the current
+    /// TriptychView publication. (It's used to reopen the book at the same 
+    ///position later on)
+    fileprivate func updateLastDocument() {
+        /// Saves the index of the last read spineItem.
+        let publicationIdentifier = publication.metadata.identifier!
+
+        UserDefaults.standard.set(triptychView.index,
+                                  forKey: "\(publicationIdentifier)-lastDocument")
     }
 }
 
