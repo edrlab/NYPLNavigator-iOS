@@ -60,15 +60,14 @@ open class NavigatorViewController: UIViewController {
 
 extension NavigatorViewController {
 
-    /// [Safe] Display the spine item at `index`.
+    /// Display the spine item at `index`.
     ///
     /// - Parameter index: The index of the spine item to display.
     public func displaySpineItem(at index: Int) {
-        // Check if index is in bounds.
         guard publication.spine.indices.contains(index) else {
             return
         }
-        triptychView.moveToIndex(index)
+        triptychView.moveTo(index: index)
     }
 
     /// Load resource with the corresponding href.
@@ -83,12 +82,11 @@ extension NavigatorViewController {
         guard let index = publication.spine.index(where: { $0.href?.contains(href) ?? false }) else {
             return
         }
-        triptychView.moveToIndex(index)
+        // If any id found, set the scroll position to it, else to the
+        // beggining of the doucment.
+        let id = (components.count > 1 ? components.last : "R2:goToBeggining")
 
-        guard let id = components.last else {
-            return
-        }
-        (triptychView.currentView as! WebView).scroll(to: id)
+        triptychView.moveTo(index: index, id: id)
     }
 
     public func getSpine() -> [Link] {
@@ -119,6 +117,10 @@ extension NavigatorViewController: ViewDelegate {
     /// - Returns: The publication identifier.
     public func publicationIdentifier() -> String? {
         return publication.metadata.identifier
+    }
+
+    public func publicationBaseUrl() -> URL? {
+        return publication.baseUrl
     }
 
     internal func handleCenterTap() {

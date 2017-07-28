@@ -3,12 +3,15 @@
 //
 
 import WebKit
+import SafariServices
 
 protocol ViewDelegate: class {
     func displayNextDocument()
     func displayPreviousDocument()
     func handleCenterTap()
     func publicationIdentifier() -> String?
+    func publicationBaseUrl() -> URL?
+    func displaySpineItem(with href: String)
 }
 
 final class WebView: WKWebView {
@@ -53,12 +56,12 @@ extension WebView {
     /// part of the screen.
     ///
     /// - Parameter body: Unused.
-    func leftTapped(body: String) {
+    internal func leftTapped(body: String) {
         let index = currentScreenIndex()
 
         guard index > 0 else {
-            viewDelegate?.displayPreviousDocument()
-            updateProgression(to: 1.0)
+                viewDelegate?.displayPreviousDocument()
+                updateProgression(to: 1.0)
             return
         }
         moveTo(screenIndex: index - 1)
@@ -68,12 +71,12 @@ extension WebView {
     /// part of the screen.
     ///
     /// - Parameter body: Unused.
-    func rightTapped(body: String) {
+    internal func rightTapped(body: String) {
         let index = currentScreenIndex()
 
         guard index < totalScreens - 1 else {
-            viewDelegate?.displayNextDocument()
-            updateProgression(to: 0.0)
+                viewDelegate?.displayNextDocument()
+                updateProgression(to: 0.0)
             return
         }
         moveTo(screenIndex: index + 1)
@@ -83,7 +86,7 @@ extension WebView {
     /// part of the screen.
     ///
     /// - Parameter body: Unused.
-    func centerTapped(body: String) {
+    internal func centerTapped(body: String) {
         viewDelegate?.handleCenterTap()
     }
 
@@ -101,6 +104,15 @@ extension WebView {
         evaluateJavaScript("document.getElementById('\(tagId)').scrollIntoView();", completionHandler: { _ in
             self.updateProgression()
         })
+    }
+
+    internal func scroll(to location: BinaryLocation) {
+        switch location {
+        case .beginning:
+            evaluateJavaScript("document.body.scrollLeft = 0", completionHandler: nil)
+        case .end:
+            evaluateJavaScript("document.body.scrollLeft = document.body.scrollWidth", completionHandler: nil)
+        }
     }
 
     /// Save current document progression in the userDefault for later reopening
@@ -153,7 +165,7 @@ extension WebView: WKScriptMessageHandler {
 extension WebView: WKNavigationDelegate {
 
     /// Moves the webView to the initial location BinaryLocation. 
-    private func scrollToInitialLocation() {
+    private func scrollToInitialPosition() {
         let scrollViewPageWidth = Double(scrollView.frame.size.width)
 
         evaluateJavaScript("document.body.scrollWidth") { (result, error) in
@@ -177,22 +189,41 @@ extension WebView: WKNavigationDelegate {
             return // Will be handled in the js func above asynchronously.
         }
 
-        switch self.initialPosition {
-        case .beginning:
-            evaluateJavaScript("document.body.scrollLeft = 0", completionHandler: nil)
-        case .end:
-            evaluateJavaScript("document.body.scrollLeft = document.body.scrollWidth", completionHandler: nil)
-        }
+        // In case the above wasn't meet.
+        scroll(to: initialPosition)
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        scrollToInitialLocation()
+        scrollToInitialPosition()
     }
 
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
                  decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+        let navigationType = navigationAction.navigationType
 
-        decisionHandler(navigationAction.navigationType == .other ? .allow : .cancel)
+        if navigationType == .linkActivated {
+            if let url = navigationAction.request.url {
+                // TO/DO add URL normalisation.
+                //check url if internal or external
+                let publicationBaseUrl = viewDelegate?.publicationBaseUrl()
+                if url.host == publicationBaseUrl?.host {
+                    // DO internal
+                    //-- remove base
+                    
+                    //let properUrl = url.absoluteString.replacingCharacters(in: publicationBaseUrl?.absoluteString, with: "")
+                    viewDelegate?.displaySpineItem(with: url.absoluteString)
+                } else if url.absoluteString.contains("https") { // TEMPORARY, better checks coming.
+                    // External Link in
+                    let view = SFSafariViewController(url: url)
+
+                    UIApplication.shared.keyWindow?.rootViewController?.present(view,
+                                                                                animated: true,
+                                                                                completion: nil)
+                }
+            }
+        }
+
+        decisionHandler(navigationType == .other ? .allow : .cancel)
     }
 }
 

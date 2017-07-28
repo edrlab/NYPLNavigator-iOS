@@ -1,3 +1,11 @@
+///
+/// The class is getting coupled more and more with WebView, but in the futur it
+/// wont be only WebViews as views. 
+/// I tried to implement a View protocol, but failed. Something will need to be
+/// done but I don't succeed, I think it's possible thought, and Winnie or
+/// Aferdita may help me soon.
+///
+
 import UIKit
 
 protocol TriptychViewDelegate: class {
@@ -226,8 +234,6 @@ final class TriptychView: UIView {
         setNeedsLayout()
     }
 
-    // TO/DO: replace webview specific stuff w/ some generique protocol.
-    // These message handlers need to be cleaned else we have a strong reference cycle.
     private func syncSubviews() {
         scrollView.subviews.forEach({
             if let webview = ($0 as? WebView) {
@@ -248,23 +254,42 @@ final class TriptychView: UIView {
 }
 
 extension TriptychView {
-    /// Move to the given index.
+    /// Move to the given index
     ///
-    /// - Parameter nextIndex: The target index.
-    internal func moveToIndex(_ nextIndex: Int) {
+    /// - Parameters:
+    ///   - nextIndex: The index to move to.
+    ///   - isJumping: If set to true, the clamping checks won't be verified, 
+    ///                hence allowing to jump to part of the book blindly
+    internal func moveTo(index nextIndex: Int, id: String? = nil) {
         if index == nextIndex, nextIndex > 0, nextIndex < viewCount {
             return
         }
 
-        clampingCheck()
+        let cw = currentView as! WebView
+
         /// [Hack?] Emulate a 1px non animated swipe to render the views properly.
         /// There must be a better solution, but working for now...
         if index < nextIndex {
+            // Clamping for taps -- Disabled if jumping == true
+            if cw.totalScreens != 1 {
+                guard cw.currentScreenIndex() == cw.totalScreens - 1 || id != nil else {
+                    return
+                }
+            }
             scrollView.setContentOffset(CGPoint(x: scrollView.contentOffset.x + 1,
                                                 y: 0), animated: false)
+            (currentView as! WebView).scroll(to: .end)
         } else {
+            // Clamping for taps -- Disabled if jumping == true
+            if cw.totalScreens != 1 {
+                guard cw.currentScreenIndex() == 0 || id != nil else {
+                    return
+                }
+
+            }
             scrollView.setContentOffset(CGPoint(x: scrollView.contentOffset.x - 1,
                                                 y: 0), animated: false)
+            (currentView as! WebView).scroll(to: .beginning)
         }
 
         let previousIndex = index
@@ -272,16 +297,20 @@ extension TriptychView {
         index = nextIndex
         clamping = .none
         updateViews(previousIndex: previousIndex)
+        // Move to ID if any, or to beggining if it's a jump from the ToC for instance.
+        if let id = id {
+            if id == "R2:goToBeggining" {
+                (currentView as! WebView).scroll(to: .beginning)
+            } else {
+                (currentView as! WebView).scroll(to: id)
+            }
+        }
     }
 }
 
 extension TriptychView: UIScrollViewDelegate {
 
     public func scrollViewDidScroll(_ scrollView: UIScrollView) {
-        clampingCheck()
-    }
-
-    fileprivate func clampingCheck() {
         guard let views = views else {
             return
         }
