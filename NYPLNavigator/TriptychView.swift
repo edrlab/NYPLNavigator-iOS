@@ -75,7 +75,7 @@ final class TriptychView: UIView {
             return self.index == 0 ? a : b
         case let .some(.many(a, .first(b))):
             // [?, ?, -, ... -, ?, ?]
-            return (index == 0 || index == viewCount) ? a : b
+            return (index == 0 || index == viewCount - 1) ? a : b
         case let .some(.many(a, .both)):
             // [... , -, ?, a, ?, -, ...]
             return a
