@@ -42,6 +42,7 @@ final class WebView: WKWebView {
         scrollView.isPagingEnabled = true
         scrollView.showsHorizontalScrollIndicator = false
         navigationDelegate = self
+
     }
 
     @available(*, unavailable)
@@ -60,8 +61,8 @@ extension WebView {
         let index = currentScreenIndex()
 
         guard index > 0 else {
-                viewDelegate?.displayPreviousDocument()
-                updateProgression(to: 1.0)
+            viewDelegate?.displayPreviousDocument()
+            updateProgression(to: 1.0)
             return
         }
         moveTo(screenIndex: index - 1)
@@ -75,8 +76,8 @@ extension WebView {
         let index = currentScreenIndex()
 
         guard index < totalScreens - 1 else {
-                viewDelegate?.displayNextDocument()
-                updateProgression(to: 0.0)
+            viewDelegate?.displayNextDocument()
+            updateProgression(to: 0.0)
             return
         }
         moveTo(screenIndex: index + 1)
@@ -176,21 +177,18 @@ extension WebView: WKNavigationDelegate {
                 self.totalScreens = Int(ceil(scrollViewTotalWidth / scrollViewPageWidth))
             }
             /// If the savedProgression property has been set by the navigator.
-            /// (means this webview is the first webView to appear).
-            if let initialLocation = self.initialPositionOverride, initialLocation > 0.0 {
-                let lastScreen = floor(Double(self.totalScreens) * initialLocation)
+            if let initialPosition = self.initialPositionOverride, initialPosition > 0.0 {
+                let lastScreen = floor(Double(self.totalScreens) * initialPosition)
 
                 let offset = lastScreen * scrollViewPageWidth
 
                 self.evaluateJavaScript("document.body.scrollLeft = \(offset)", completionHandler: nil)
             }
         }
-        if initialPositionOverride != nil {
-            return // Will be handled in the js func above asynchronously.
+        if initialPositionOverride == nil {
+            // In case the above wasn't meet.
+            scroll(to: initialPosition)
         }
-
-        // In case the above wasn't meet.
-        scroll(to: initialPosition)
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
@@ -210,9 +208,10 @@ extension WebView: WKNavigationDelegate {
                     // DO internal
                     //-- remove base
                     
-                    //let properUrl = url.absoluteString.replacingCharacters(in: publicationBaseUrl?.absoluteString, with: "")
+                    //let properUrl = url.absoluteString.replacingCharacters(in:
+                    //publicationBaseUrl?.absoluteString, with: "")
                     viewDelegate?.displaySpineItem(with: url.absoluteString)
-                } else if url.absoluteString.contains("https") { // TEMPORARY, better checks coming.
+                } else if url.absoluteString.contains("http") { // TEMPORARY, better checks coming.
                     // External Link in
                     let view = SFSafariViewController(url: url)
 

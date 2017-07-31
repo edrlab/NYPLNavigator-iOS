@@ -75,7 +75,7 @@ final class TriptychView: UIView {
             return self.index == 0 ? a : b
         case let .some(.many(a, .first(b))):
             // [?, ?, -, ... -, ?, ?]
-            return self.index == 0 ? a : b
+            return (index == 0 || index == viewCount) ? a : b
         case let .some(.many(a, .both)):
             // [... , -, ?, a, ?, -, ...]
             return a
@@ -258,10 +258,8 @@ extension TriptychView {
     ///
     /// - Parameters:
     ///   - nextIndex: The index to move to.
-    ///   - isJumping: If set to true, the clamping checks won't be verified, 
-    ///                hence allowing to jump to part of the book blindly
-    internal func moveTo(index nextIndex: Int, id: String? = nil) {
-        if index == nextIndex, nextIndex > 0, nextIndex < viewCount {
+    internal func moveTo(index nextIndex: Int, jumping: Bool = false) {
+        guard index != nextIndex, nextIndex >= 0, nextIndex < viewCount else {
             return
         }
 
@@ -270,26 +268,32 @@ extension TriptychView {
         /// [Hack?] Emulate a 1px non animated swipe to render the views properly.
         /// There must be a better solution, but working for now...
         if index < nextIndex {
-            // Clamping for taps -- Disabled if jumping == true
-            if cw.totalScreens != 1 {
-                guard cw.currentScreenIndex() == cw.totalScreens - 1 || id != nil else {
+            // Clamping for taps -- Disabled if jumping == true.
+            if !jumping, cw.totalScreens != 1 {
+                guard cw.currentScreenIndex() == cw.totalScreens - 1 else {
                     return
                 }
             }
             scrollView.setContentOffset(CGPoint(x: scrollView.contentOffset.x + 1,
                                                 y: 0), animated: false)
-            (currentView as! WebView).scroll(to: .end)
+            // Set the webview position to the end in case we jumped.
+            if jumping {
+                cw.scroll(to: .end)
+            }
         } else {
-            // Clamping for taps -- Disabled if jumping == true
-            if cw.totalScreens != 1 {
-                guard cw.currentScreenIndex() == 0 || id != nil else {
+            // Clamping for taps -- Disabled if jumping == true.
+            if !jumping, cw.totalScreens != 1 {
+                guard cw.currentScreenIndex() == 0 else {
                     return
                 }
 
             }
             scrollView.setContentOffset(CGPoint(x: scrollView.contentOffset.x - 1,
                                                 y: 0), animated: false)
-            (currentView as! WebView).scroll(to: .beginning)
+            // Set the web view position to the beggining in case we jumped.
+            if jumping {
+                cw.scroll(to: .beginning)
+            }
         }
 
         let previousIndex = index
@@ -297,14 +301,6 @@ extension TriptychView {
         index = nextIndex
         clamping = .none
         updateViews(previousIndex: previousIndex)
-        // Move to ID if any, or to beggining if it's a jump from the ToC for instance.
-        if let id = id {
-            if id == "R2:goToBeggining" {
-                (currentView as! WebView).scroll(to: .beginning)
-            } else {
-                (currentView as! WebView).scroll(to: id)
-            }
-        }
     }
 }
 
