@@ -297,13 +297,23 @@ extension TriptychView {
         clamping = .none
         updateViews(previousIndex: previousIndex)
 
-        //
+        // get the new current view after change.
         cw = currentView as! WebView
         if let id = id {
             if id == "" {
-                cw.initialPositionOverride = 0.0
+                if abs(previousIndex - nextIndex) == 1 {
+                    // if the view was adjacent and already loaded
+                    cw.scrollAt(location: .beginning)
+                } else {
+                    // In case the view wasn't preloaded
+                    cw.initialPositionOverride = 0.0
+                }
             } else {
-                cw.initialId = id
+                if abs(previousIndex - nextIndex) == 1 {
+                    cw.scrollAt(tagId: id)
+                } else {
+                    cw.initialId = id
+                }
             }
         }
     }

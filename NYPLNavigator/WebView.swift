@@ -140,7 +140,9 @@ extension WebView {
 
     // Scroll at the tag with id `tagId`.
     internal func scrollAt(tagId: String) {
-        evaluateJavaScript("document.getElementById('\(tagId)').scrollIntoView();", completionHandler: { _ in
+        let screenWidth = Double(scrollView.frame.size.width)
+
+        evaluateJavaScript("scrollToId(\'\(tagId)\', '\(screenWidth)')", completionHandler: { _ in
             self.updateProgression()
         })
     }
@@ -149,9 +151,13 @@ extension WebView {
     internal func scrollAt(location: BinaryLocation) {
         switch location {
         case .beginning:
-            evaluateJavaScript("document.body.scrollLeft = 0", completionHandler: nil)
+            evaluateJavaScript("document.body.scrollLeft = 0", completionHandler: { _ in
+                self.updateProgression()
+            })
         case .end:
-            evaluateJavaScript("document.body.scrollLeft = document.body.scrollWidth", completionHandler: nil)
+            evaluateJavaScript("document.body.scrollLeft = document.body.scrollWidth", completionHandler: { _ in
+                self.updateProgression()
+            })
         }
     }
 
@@ -213,12 +219,13 @@ extension WebView: WKNavigationDelegate {
                 let scrollViewTotalWidth = Double(resultString)!
 
                 self.totalScreens = Int(ceil(scrollViewTotalWidth / screenWidth))
-            }
-            /// If the savedProgression property has been set by the navigator.
-            if let initialPosition = self.initialPositionOverride, initialPosition > 0.0 {
-                self.scrollAt(position: initialPosition)
-            } else if let initialId = self.initialId {
-                self.scrollAt(tagId: initialId)
+                
+                /// If the savedProgression property has been set by the navigator.
+                if let initialPosition = self.initialPositionOverride, initialPosition > 0.0 {
+                    self.scrollAt(position: initialPosition)
+                } else if let initialId = self.initialId {
+                    self.scrollAt(tagId: initialId)
+                }
             }
         }
         if initialPositionOverride == nil {
