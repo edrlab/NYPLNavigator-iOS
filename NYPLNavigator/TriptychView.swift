@@ -269,12 +269,6 @@ extension TriptychView {
         /// [Hack?] Emulate a 1px non animated swipe to render the views properly.
         /// There must be a better solution, but working for now...
         if index < nextIndex {
-            // Clamping for taps -- Disabled if jumping == true.
-            if !jumping, cw.totalScreens != 1 {
-                guard cw.currentScreenIndex() == cw.totalScreens - 1 else {
-                    return
-                }
-            }
             scrollView.setContentOffset(CGPoint(x: scrollView.contentOffset.x + 1,
                                                 y: 0), animated: false)
             // Set the webview position to the end in case we jumped.
@@ -282,13 +276,6 @@ extension TriptychView {
                 cw.scrollAt(location: .end)
             }
         } else {
-            // Clamping for taps -- Disabled if jumping == true.
-            if !jumping, cw.totalScreens != 1 {
-                guard cw.currentScreenIndex() == 0 else {
-                    return
-                }
-
-            }
             scrollView.setContentOffset(CGPoint(x: scrollView.contentOffset.x - 1,
                                                 y: 0), animated: false)
             // Set the web view position to the beggining in case we jumped.

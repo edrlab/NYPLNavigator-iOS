@@ -16,13 +16,19 @@ protocol ViewDelegate: class {
 
 final class WebView: WKWebView {
 
-    let jsEvents = ["leftTap": leftTapped,
-                      "centerTap": centerTapped,
-                      "rightTap": rightTapped]
-
+    public weak var viewDelegate: ViewDelegate?
     fileprivate let initialLocation: BinaryLocation
 
     public var initialPositionOverride: Double?
+    public var initialId: String?
+
+//    // Prevent to skip documents when tapping left/right.
+//    var lockedLeft = false
+//    var lockedRight = false
+
+    let jsEvents = ["leftTap": leftTapped,
+                      "centerTap": centerTapped,
+                      "rightTap": rightTapped]
 
     // Max number of screen for representing the html document.
     public var totalScreens = 0
@@ -30,8 +36,6 @@ final class WebView: WKWebView {
     public func currentScreenIndex() -> Int {
         return Int(round(scrollView.contentOffset.x / scrollView.frame.width))
     }
-
-    public weak var viewDelegate: ViewDelegate?
 
     init(frame: CGRect, initialLocation: BinaryLocation) {
         self.initialLocation = initialLocation
@@ -60,7 +64,17 @@ extension WebView {
     internal func leftTapped(body: String) {
         let index = currentScreenIndex()
 
+//        if lockedLeft {
+//            if totalScreens != 0 {
+//                lockedLeft = false
+//            } else {
+//                return
+//            }
+//        }
+        print("CI --> \(index)")
         guard index > 0 else {
+//            lockedLeft = true
+//            totalScreens = 0
             viewDelegate?.displayPreviousDocument()
             updateProgression(to: 1.0)
             return
@@ -75,7 +89,19 @@ extension WebView {
     internal func rightTapped(body: String) {
         let index = currentScreenIndex()
 
+//        if lockedRight {
+//            if totalScreens != 0 {
+//                print("Unlokcing right")
+//                lockedRight = false
+//            } else {
+//                print("Locking right")
+//                return
+//            }
+//        }
+        print("CI --> \(index)")
         guard index < totalScreens - 1 else {
+//            lockedRight = true
+//            totalScreens = 0
             viewDelegate?.displayNextDocument()
             updateProgression(to: 0.0)
             return
@@ -191,6 +217,8 @@ extension WebView: WKNavigationDelegate {
             /// If the savedProgression property has been set by the navigator.
             if let initialPosition = self.initialPositionOverride, initialPosition > 0.0 {
                 self.scrollAt(position: initialPosition)
+            } else if let initialId = self.initialId {
+                self.scrollAt(tagId: initialId)
             }
         }
         if initialPositionOverride == nil {
