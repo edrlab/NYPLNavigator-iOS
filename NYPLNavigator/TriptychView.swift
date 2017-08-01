@@ -64,7 +64,7 @@ final class TriptychView: UIView {
 
     /// Return the currently presented view from the Views array.
     var currentView: UIView? {
-        switch self.views {
+        switch views {
         case nil:
             return nil
         case let .some(.one(a)):
@@ -72,7 +72,7 @@ final class TriptychView: UIView {
             return a
         case let .some(.two(a, b)):
             // [?, ?]
-            return self.index == 0 ? a : b
+            return index == 0 ? a : b
         case let .some(.many(a, .first(b))):
             // [?, ?, -, ... -, ?, ?]
             return (index == 0 || index == viewCount - 1) ? a : b
@@ -80,7 +80,7 @@ final class TriptychView: UIView {
             // [... , -, ?, a, ?, -, ...]
             return a
         case let .some(.many(a, .second(b))):
-            return self.index == self.viewCount - 1 ? b : a
+            return index == viewCount - 1 ? b : a
         }
     }
 
@@ -259,29 +259,36 @@ extension TriptychView {
     ///
     /// - Parameters:
     ///   - nextIndex: The index to move to.
-    internal func moveTo(index nextIndex: Int, jumping: Bool = false) {
-        guard index != nextIndex, nextIndex >= 0, nextIndex < viewCount else {
+    internal func moveTo(index nextIndex: Int, id: String? = nil) {
+        var cw = currentView as! WebView
+
+        guard index != nextIndex /*, nextIndex >= 0, nextIndex < viewCount*/ else {
+            if let id = id {
+                if id == "" {
+                    cw.scrollAt(location: .beginning)
+                } else {
+                    cw.scrollAt(tagId: id)
+                }
+            }
             return
         }
-
-        let cw = currentView as! WebView
 
         /// [Hack?] Emulate a 1px non animated swipe to render the views properly.
         /// There must be a better solution, but working for now...
         if index < nextIndex {
             scrollView.setContentOffset(CGPoint(x: scrollView.contentOffset.x + 1,
                                                 y: 0), animated: false)
-            // Set the webview position to the end in case we jumped.
-            if jumping {
-                cw.scrollAt(location: .end)
-            }
+            //            // Set the webview position to the end in case we jumped.
+            //            if jumping {
+            cw.scrollAt(location: .end)
+            //            }
         } else {
             scrollView.setContentOffset(CGPoint(x: scrollView.contentOffset.x - 1,
                                                 y: 0), animated: false)
-            // Set the web view position to the beggining in case we jumped.
-            if jumping {
-                cw.scrollAt(location: .beginning)
-            }
+            //            // Set the web view position to the beggining in case we jumped.
+            //            if jumping {
+            cw.scrollAt(location: .beginning)
+            //            }
         }
 
         let previousIndex = index
@@ -289,6 +296,16 @@ extension TriptychView {
         index = nextIndex
         clamping = .none
         updateViews(previousIndex: previousIndex)
+
+        //
+        cw = currentView as! WebView
+        if let id = id {
+            if id == "" {
+                cw.initialPositionOverride = 0.0
+            } else {
+                cw.initialId = id
+            }
+        }
     }
 }
 

@@ -84,10 +84,10 @@ extension NavigatorViewController {
         }
         // If any id found, set the scroll position to it, else to the
         // beggining of the document.
-//        let id = (components.count > 1 ? components.last : "")
+        let id = (components.count > 1 ? components.last : "")
 
         // Jumping set to true to avoid clamping.
-        triptychView.moveTo(index: index, jumping: true)
+        triptychView.moveTo(index: index, id: id)
     }
 
     public func getSpine() -> [Link] {
