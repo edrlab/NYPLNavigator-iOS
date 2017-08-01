@@ -103,7 +103,7 @@ extension WebView {
 
     // Scroll at position 0-1 (0%-100%)
     internal func scrollAt(position: Double) {
-        guard position => 0 && position <= 1 else { return }
+        guard position >= 0 && position <= 1 else { return }
         let screenWidth = Double(scrollView.frame.size.width)
         let lastScreen = floor(Double(totalScreens) * position)
 
