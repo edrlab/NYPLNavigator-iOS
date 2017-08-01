@@ -83,7 +83,7 @@ extension NavigatorViewController {
             return
         }
         // If any id found, set the scroll position to it, else to the
-        // beggining of the doucment.
+        // beggining of the document.
 //        let id = (components.count > 1 ? components.last : "")
 
         // Jumping set to true to avoid clamping.
@@ -150,7 +150,7 @@ extension Delegatee: TriptychViewDelegate {
 
     public func triptychView(_ view: TriptychView, viewForIndex index: Int,
                              location: BinaryLocation) -> UIView {
-        let webView = WebView(frame: view.bounds, initialPosition: location)
+        let webView = WebView(frame: view.bounds, initialLocation: location)
         let link = parent.publication.spine[index]
 
         if let url = parent.publication.uriTo(link: link) {

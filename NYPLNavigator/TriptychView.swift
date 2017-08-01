@@ -230,6 +230,7 @@ final class TriptychView: UIView {
                         second: viewForIndex(index + 1, location: .beginning)))
             }
         }
+
         syncSubviews()
         setNeedsLayout()
     }
@@ -278,7 +279,7 @@ extension TriptychView {
                                                 y: 0), animated: false)
             // Set the webview position to the end in case we jumped.
             if jumping {
-                cw.scroll(to: .end)
+                cw.scrollAt(location: .end)
             }
         } else {
             // Clamping for taps -- Disabled if jumping == true.
@@ -292,7 +293,7 @@ extension TriptychView {
                                                 y: 0), animated: false)
             // Set the web view position to the beggining in case we jumped.
             if jumping {
-                cw.scroll(to: .beginning)
+                cw.scrollAt(location: .beginning)
             }
         }
 

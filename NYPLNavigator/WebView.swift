@@ -20,7 +20,7 @@ final class WebView: WKWebView {
                       "centerTap": centerTapped,
                       "rightTap": rightTapped]
 
-    fileprivate let initialPosition: BinaryLocation
+    fileprivate let initialLocation: BinaryLocation
 
     public var initialPositionOverride: Double?
 
@@ -33,8 +33,8 @@ final class WebView: WKWebView {
 
     public weak var viewDelegate: ViewDelegate?
 
-    init(frame: CGRect, initialPosition: BinaryLocation) {
-        self.initialPosition = initialPosition
+    init(frame: CGRect, initialLocation: BinaryLocation) {
+        self.initialLocation = initialLocation
         super.init(frame: frame, configuration: .init())
 
         scrollView.delegate = self
@@ -65,7 +65,7 @@ extension WebView {
             updateProgression(to: 1.0)
             return
         }
-        moveTo(screenIndex: index - 1)
+        scrollAt(screenIndex: index - 1)
     }
 
     /// Called from the JS code when a tap is detected in the 2/10 right
@@ -80,7 +80,7 @@ extension WebView {
             updateProgression(to: 0.0)
             return
         }
-        moveTo(screenIndex: index + 1)
+        scrollAt(screenIndex: index + 1)
     }
 
     /// Called from the JS code when a tap is detected in the 6/10 center
@@ -91,23 +91,36 @@ extension WebView {
         viewDelegate?.handleCenterTap()
     }
 
-    internal func moveTo(screenIndex: Int, animated: Bool = false) {
-        let screenSize = Int(scrollView.frame.size.width)
-        let offset = screenSize * screenIndex
+    internal func scrollAt(screenIndex: Int) {
+        let screenWidth = scrollView.frame.size.width
+        let offset = Int(screenWidth) * screenIndex
 
-        let progression = Double(offset) / Double(scrollView.contentSize.width)
+        let progression = Double(offset) / Double(screenWidth)
 
         updateProgression(to: progression)
         self.evaluateJavaScript("document.body.scrollLeft = \(offset)", completionHandler: nil)
     }
 
-    internal func scroll(to tagId: String) {
+    // Scroll at position 0-1 (0%-100%)
+    internal func scrollAt(position: Double) {
+        guard position => 0 && position <= 1 else { return }
+        let screenWidth = Double(scrollView.frame.size.width)
+        let lastScreen = floor(Double(totalScreens) * position)
+
+        let offset = lastScreen * screenWidth
+
+        self.evaluateJavaScript("document.body.scrollLeft = \(offset)", completionHandler: nil)
+    }
+
+    // Scroll at the tag with id `tagId`.
+    internal func scrollAt(tagId: String) {
         evaluateJavaScript("document.getElementById('\(tagId)').scrollIntoView();", completionHandler: { _ in
             self.updateProgression()
         })
     }
 
-    internal func scroll(to location: BinaryLocation) {
+    // Scroll to .beggining or .end.
+    internal func scrollAt(location: BinaryLocation) {
         switch location {
         case .beginning:
             evaluateJavaScript("document.body.scrollLeft = 0", completionHandler: nil)
@@ -164,30 +177,25 @@ extension WebView: WKScriptMessageHandler {
 }
 
 extension WebView: WKNavigationDelegate {
-
     /// Moves the webView to the initial location BinaryLocation. 
     private func scrollToInitialPosition() {
-        let scrollViewPageWidth = Double(scrollView.frame.size.width)
+        let screenWidth = Double(scrollView.frame.size.width)
 
         evaluateJavaScript("document.body.scrollWidth") { (result, error) in
             if error == nil, let result = result {
                 let resultString = String(describing: result)
                 let scrollViewTotalWidth = Double(resultString)!
 
-                self.totalScreens = Int(ceil(scrollViewTotalWidth / scrollViewPageWidth))
+                self.totalScreens = Int(ceil(scrollViewTotalWidth / screenWidth))
             }
             /// If the savedProgression property has been set by the navigator.
             if let initialPosition = self.initialPositionOverride, initialPosition > 0.0 {
-                let lastScreen = floor(Double(self.totalScreens) * initialPosition)
-
-                let offset = lastScreen * scrollViewPageWidth
-
-                self.evaluateJavaScript("document.body.scrollLeft = \(offset)", completionHandler: nil)
+                self.scrollAt(position: initialPosition)
             }
         }
         if initialPositionOverride == nil {
             // In case the above wasn't meet.
-            scroll(to: initialPosition)
+            scrollAt(location: initialLocation)
         }
     }
 
@@ -204,15 +212,14 @@ extension WebView: WKNavigationDelegate {
                 // TO/DO add URL normalisation.
                 //check url if internal or external
                 let publicationBaseUrl = viewDelegate?.publicationBaseUrl()
-                if url.host == publicationBaseUrl?.host {
-                    // DO internal
-                    //-- remove base
-                    
-                    //let properUrl = url.absoluteString.replacingCharacters(in:
-                    //publicationBaseUrl?.absoluteString, with: "")
-                    viewDelegate?.displaySpineItem(with: url.absoluteString)
+                if url.host == publicationBaseUrl?.host,
+                    let baseUrlString = publicationBaseUrl?.absoluteString {
+                    // Internal link.
+                    let href = url.absoluteString.replacingOccurrences(of: baseUrlString, with: "")
+
+                    viewDelegate?.displaySpineItem(with: href)
                 } else if url.absoluteString.contains("http") { // TEMPORARY, better checks coming.
-                    // External Link in
+                    // External Link.
                     let view = SFSafariViewController(url: url)
 
                     UIApplication.shared.keyWindow?.rootViewController?.present(view,
