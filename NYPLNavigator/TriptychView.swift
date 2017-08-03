@@ -284,22 +284,17 @@ extension TriptychView {
             return
         }
 
-        /// [Hack?] Emulate a 1px non animated swipe to render the views properly.
-        /// There must be a better solution, but working for now...
+        var currentRect = scrollView.contentOffset
+        let currentFrameSize = scrollView.frame.size
+
         if index < nextIndex {
-            scrollView.setContentOffset(CGPoint(x: scrollView.contentOffset.x + 1,
-                                                y: 0), animated: false)
-            //            // Set the webview position to the end in case we jumped.
-            //            if jumping {
+            currentRect.x += currentFrameSize.width
+            scrollView.scrollRectToVisible(CGRect(origin: currentRect, size: currentFrameSize), animated: false)
             cw.scrollAt(location: .end)
-            //            }
         } else {
-            scrollView.setContentOffset(CGPoint(x: scrollView.contentOffset.x - 1,
-                                                y: 0), animated: false)
-            //            // Set the web view position to the beggining in case we jumped.
-            //            if jumping {
+            currentRect.x -= currentFrameSize.width
+            scrollView.scrollRectToVisible(CGRect(origin: currentRect, size: currentFrameSize), animated: false)
             cw.scrollAt(location: .beginning)
-            //            }
         }
 
         let previousIndex = index

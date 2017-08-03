@@ -149,6 +149,7 @@ extension Delegatee: TriptychViewDelegate {
             // Load last saved regionIndex for the first view.
             if parent.initialProgression != nil {
                 webView.progression = parent.initialProgression
+                parent.initialProgression = nil
             }
         }
         return webView
