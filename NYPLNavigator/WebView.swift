@@ -22,20 +22,13 @@ final class WebView: WKWebView {
     public var initialPositionOverride: Double?
     public var initialId: String?
 
-//    // Prevent to skip documents when tapping left/right.
-//    var lockedLeft = false
-//    var lockedRight = false
+    public var documentLoaded = false
 
     let jsEvents = ["leftTap": leftTapped,
-                      "centerTap": centerTapped,
-                      "rightTap": rightTapped]
-
-    // Max number of screen for representing the html document.
-    public var totalScreens = 0
-    // Currently displayed screen Index.
-    public func currentScreenIndex() -> Int {
-        return Int(round(scrollView.contentOffset.x / scrollView.frame.width))
-    }
+                    "centerTap": centerTapped,
+                    "rightTap": rightTapped,
+                    "didLoad": documentDidLoad,
+                    "updateProgression": progressionDidChange]
 
     init(frame: CGRect, initialLocation: BinaryLocation) {
         self.initialLocation = initialLocation
@@ -62,24 +55,19 @@ extension WebView {
     ///
     /// - Parameter body: Unused.
     internal func leftTapped(body: String) {
-        let index = currentScreenIndex()
-
-//        if lockedLeft {
-//            if totalScreens != 0 {
-//                lockedLeft = false
-//            } else {
-//                return
-//            }
-//        }
-        print("CI --> \(index)")
-        guard index > 0 else {
-//            lockedLeft = true
-//            totalScreens = 0
-            viewDelegate?.displayPreviousDocument()
-            updateProgression(to: 1.0)
+        // Verify that the document is properly loaded.
+        guard documentLoaded else {
             return
         }
-        scrollAt(screenIndex: index - 1)
+//        // If we are at the left edge.
+//        if scrollView.contentOffset.x == 0 {
+//            // Move to previous document
+//            viewDelegate?.displayPreviousDocument()
+////            updateProgression(to: 0.0)
+//            return
+//        } else { // Move to previous position in document.
+            scroll(.left)
+//        }
     }
 
     /// Called from the JS code when a tap is detected in the 2/10 right
@@ -87,26 +75,11 @@ extension WebView {
     ///
     /// - Parameter body: Unused.
     internal func rightTapped(body: String) {
-        let index = currentScreenIndex()
-
-//        if lockedRight {
-//            if totalScreens != 0 {
-//                print("Unlokcing right")
-//                lockedRight = false
-//            } else {
-//                print("Locking right")
-//                return
-//            }
-//        }
-        print("CI --> \(index)")
-        guard index < totalScreens - 1 else {
-//            lockedRight = true
-//            totalScreens = 0
-            viewDelegate?.displayNextDocument()
-            updateProgression(to: 0.0)
+        // Verify that the document is properly loaded.
+        guard documentLoaded else {
             return
         }
-        scrollAt(screenIndex: index + 1)
+        scroll(.right)
     }
 
     /// Called from the JS code when a tap is detected in the 6/10 center
@@ -117,47 +90,84 @@ extension WebView {
         viewDelegate?.handleCenterTap()
     }
 
-    internal func scrollAt(screenIndex: Int) {
-        let screenWidth = scrollView.frame.size.width
-        let offset = Int(screenWidth) * screenIndex
+    enum Scroll {
+        case left
+        case right
 
-        let progression = Double(offset) / Double(screenWidth)
-
-        updateProgression(to: progression)
-        self.evaluateJavaScript("document.body.scrollLeft = \(offset)", completionHandler: nil)
+        func proceed(on target: WebView) {
+            switch self {
+            case .left:
+                target.evaluateJavaScript("scrollLeft();", completionHandler: { result, error in
+                    if error == nil, let result = result as? String, result == "edge" {
+                        target.viewDelegate?.displayPreviousDocument()
+                    }
+                })
+            case .right:
+                target.evaluateJavaScript("scrollRight();", completionHandler: { result, error in
+                    if error == nil, let result = result as? String, result == "edge" {
+                        target.viewDelegate?.displayNextDocument()
+                    }
+                })
+            }
+        }
     }
+
+    internal func scroll(_ scroll: Scroll) {
+        scroll.proceed(on: self)
+    }
+
+    /// Called by the javascript code to notify on DocumentReady.
+    ///
+    /// - Parameter body: Unused.
+    internal func documentDidLoad(body: String) {
+        documentLoaded = true
+        scrollToInitialPosition()
+    }
+
+    /// Moves the webView to the initial location BinaryLocation.
+    private func scrollToInitialPosition() {
+
+        /// If the savedProgression property has been set by the navigator.
+        if let initialPosition = self.initialPositionOverride, initialPosition > 0.0 {
+            self.scrollAt(position: initialPosition)
+        } else if let initialId = self.initialId {
+            self.scrollAt(tagId: initialId)
+        } else {
+            scrollAt(location: initialLocation)
+        }
+    }
+
+    // Called by the javascript code to notify that scrolling ended.
+    internal func progressionDidChange(body: String) {
+        guard documentLoaded, let position = Double(body) else {
+            return
+        }
+        updateProgression(to: position)
+    }
+
+    //////
 
     // Scroll at position 0-1 (0%-100%)
     internal func scrollAt(position: Double) {
         guard position >= 0 && position <= 1 else { return }
-        let screenWidth = Double(scrollView.frame.size.width)
-        let lastScreen = floor(Double(totalScreens) * position)
 
-        let offset = lastScreen * screenWidth
-
-        self.evaluateJavaScript("document.body.scrollLeft = \(offset)", completionHandler: nil)
+        self.evaluateJavaScript("scrollToPosition(\'\(position)\')",
+            completionHandler: nil)
     }
 
     // Scroll at the tag with id `tagId`.
     internal func scrollAt(tagId: String) {
-        let screenWidth = Double(scrollView.frame.size.width)
-
-        evaluateJavaScript("scrollToId(\'\(tagId)\', '\(screenWidth)')", completionHandler: { _ in
-            self.updateProgression()
-        })
+        evaluateJavaScript("scrollToId(\'\(tagId)\');",
+            completionHandler: nil)
     }
 
     // Scroll to .beggining or .end.
     internal func scrollAt(location: BinaryLocation) {
         switch location {
         case .beginning:
-            evaluateJavaScript("document.body.scrollLeft = 0", completionHandler: { _ in
-                self.updateProgression()
-            })
+            scrollAt(position: 0)
         case .end:
-            evaluateJavaScript("document.body.scrollLeft = document.body.scrollWidth", completionHandler: { _ in
-                self.updateProgression()
-            })
+            scrollAt(position: 1)
         }
     }
 
@@ -166,13 +176,11 @@ extension WebView {
     /// A specific progression can be given, and if not, it will try to determine
     /// it unprecisely using screenIndex over the total number of screens. 
     /// (Imprecise cause not always up to date)
-    fileprivate func updateProgression(to value: Double? = nil) {
+    fileprivate func updateProgression(to value: Double) {
         guard let publicationIdentifier = viewDelegate?.publicationIdentifier() else {
             return
         }
-        let progression = (value != nil ? value : Double(currentScreenIndex()) / Double(totalScreens))
-
-        UserDefaults.standard.set(progression,
+        UserDefaults.standard.set(value,
                                   forKey: "\(publicationIdentifier)-documentProgression")
     }
 }
@@ -209,34 +217,11 @@ extension WebView: WKScriptMessageHandler {
 }
 
 extension WebView: WKNavigationDelegate {
-    /// Moves the webView to the initial location BinaryLocation. 
-    private func scrollToInitialPosition() {
-        let screenWidth = Double(scrollView.frame.size.width)
 
-        evaluateJavaScript("document.body.scrollWidth") { (result, error) in
-            if error == nil, let result = result {
-                let resultString = String(describing: result)
-                let scrollViewTotalWidth = Double(resultString)!
 
-                self.totalScreens = Int(ceil(scrollViewTotalWidth / screenWidth))
-                
-                /// If the savedProgression property has been set by the navigator.
-                if let initialPosition = self.initialPositionOverride, initialPosition > 0.0 {
-                    self.scrollAt(position: initialPosition)
-                } else if let initialId = self.initialId {
-                    self.scrollAt(tagId: initialId)
-                }
-            }
-        }
-        if initialPositionOverride == nil {
-            // In case the above wasn't meet.
-            scrollAt(location: initialLocation)
-        }
-    }
-
-    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        scrollToInitialPosition()
-    }
+//    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+//
+//    }
 
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
                  decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
@@ -275,6 +260,8 @@ extension WebView: UIScrollViewDelegate {
 
     func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
         // Update the DocumentProgression in userDefault when user swipe.
-        updateProgression()
+        let offset = scrollView.contentOffset.x / scrollView.contentSize.width
+
+        updateProgression(to: Double(offset))
     }
 }
