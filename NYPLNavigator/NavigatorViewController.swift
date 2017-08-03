@@ -4,43 +4,33 @@ import WebKit
 
 public protocol NavigatorDelegate: class {
     func middleTapHandler()
+    func willExitPublication(documentIndex: Int, progression: Double?)
 }
 
 open class NavigatorViewController: UIViewController {
     private let delegatee: Delegatee!
     fileprivate let triptychView: TriptychView
+    fileprivate var initialProgression: Double?
     //
     public let publication: Publication
     public weak var delegate: NavigatorDelegate?
 
     /// - Parameters:
     ///   - publication: The publication.
-    ///   - initialIndex: Inital index of -1 will open the publication's document
-    ///                   to last opened place or 0.
-    public init(for publication: Publication, initialIndex: Int) {
+    ///   - initialIndex: Inital index of -1 will open the publication's at the end.
+    public init(for publication: Publication, initialIndex: Int, initialProgression: Double?) {
         self.publication = publication
+        self.initialProgression = initialProgression
         delegatee = Delegatee()
         var index = initialIndex
 
-        if index == -1 {
-            let publicationIdentifier = publication.metadata.identifier!
-            let savedIndex = UserDefaults.standard.integer(forKey: "\(publicationIdentifier)-lastDocument")
-
-            index = savedIndex
+        if initialIndex == -1 {
+            index = publication.spine.count
         }
-
         triptychView = TriptychView(frame: CGRect.zero,
                                     viewCount: publication.spine.count,
                                     initialIndex: index)
         super.init(nibName: nil, bundle: nil)
-    }
-
-    deinit {
-        /// Saves the index of the last read spineItem.
-        let publicationIdentifier = publication.metadata.identifier!
-
-        UserDefaults.standard.set(triptychView.index,
-                     forKey: "\(publicationIdentifier)-lastDocument")
     }
 
     @available(*, unavailable)
@@ -55,6 +45,16 @@ open class NavigatorViewController: UIViewController {
         triptychView.frame = view.bounds
         triptychView.autoresizingMask = [.flexibleHeight, .flexibleWidth]
         view.addSubview(triptychView)
+    }
+
+    open override func viewWillDisappear(_ animated: Bool) {
+        // Save the currently opened document index and progression.
+        if navigationController == nil {
+            let progression = triptychView.getCurrentDocumentProgression()
+            let index = triptychView.getCurrentDocumentIndex()
+
+            delegate?.willExitPublication(documentIndex: index, progression: progression)
+        }
     }
 }
 
@@ -104,13 +104,11 @@ extension NavigatorViewController: ViewDelegate {
     /// Display next spine item (spine item).
     public func displayNextDocument() {
         displaySpineItem(at: triptychView.index + 1)
-        updateLastDocument()
     }
 
     /// Display previous document (spine item).
     public func displayPreviousDocument() {
         displaySpineItem(at: triptychView.index - 1)
-        updateLastDocument()
     }
 
     /// Returns the currently presented Publication's identifier.
@@ -126,17 +124,6 @@ extension NavigatorViewController: ViewDelegate {
 
     internal func handleCenterTap() {
         delegate?.middleTapHandler()
-    }
-
-    /// Updates the UserDefault lastDocumentKey associated to the current
-    /// TriptychView publication. (It's used to reopen the book at the same 
-    ///position later on)
-    fileprivate func updateLastDocument() {
-        /// Saves the index of the last read spineItem.
-        let publicationIdentifier = publication.metadata.identifier!
-
-        UserDefaults.standard.set(triptychView.index,
-                                  forKey: "\(publicationIdentifier)-lastDocument")
     }
 }
 
@@ -160,13 +147,8 @@ extension Delegatee: TriptychViewDelegate {
             webView.load(urlRequest)
 
             // Load last saved regionIndex for the first view.
-            if firstView {
-                firstView = false
-                let defaults = UserDefaults.standard
-                let publicationIdentifier = parent.publication.metadata.identifier!
-                let savedProgression = defaults.double(forKey: "\(publicationIdentifier)-documentProgression")
-
-                webView.initialPositionOverride = savedProgression
+            if parent.initialProgression != nil {
+                webView.progression = parent.initialProgression
             }
         }
         return webView

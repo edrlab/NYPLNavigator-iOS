@@ -124,6 +124,17 @@ final class TriptychView: UIView {
         addSubview(scrollView)
     }
 
+    deinit {
+        guard let views = views else {
+            return
+        }
+        for view in views.array {
+            if let webview = (view as? WebView) {
+               webview.removeMessageHandlers()
+            }
+        }
+    }
+
     @available(*, unavailable)
     public required init?(coder aDecoder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
@@ -245,8 +256,8 @@ final class TriptychView: UIView {
 
         if let viewArray = views?.array {
             viewArray.forEach({
-                if let webView = ($0 as? WebView) {
-                    webView.addMessageHandlers()
+                if let webview = ($0 as? WebView) {
+                    webview.addMessageHandlers()
                 }
                 self.scrollView.addSubview($0)
             })
@@ -262,7 +273,7 @@ extension TriptychView {
     internal func moveTo(index nextIndex: Int, id: String? = nil) {
         var cw = currentView as! WebView
 
-        guard index != nextIndex /*, nextIndex >= 0, nextIndex < viewCount*/ else {
+        guard index != nextIndex else {
             if let id = id {
                 if id == "" {
                     cw.scrollAt(location: .beginning)
@@ -306,7 +317,7 @@ extension TriptychView {
                     cw.scrollAt(location: .beginning)
                 } else {
                     // In case the view wasn't preloaded
-                    cw.initialPositionOverride = 0.0
+                    cw.progression = 0.0
                 }
             } else {
                 if abs(previousIndex - nextIndex) == 1 {
@@ -316,6 +327,19 @@ extension TriptychView {
                 }
             }
         }
+    }
+
+    /// Return the index of the document currently being displayed.
+    public func getCurrentDocumentIndex() -> Int {
+        return index
+    }
+
+    /// Returns the progression in the document currently being displayed.
+    public func getCurrentDocumentProgression() -> Double? {
+        guard currentView != nil else {
+            return nil
+        }
+        return (currentView as! WebView).progression
     }
 }
 
