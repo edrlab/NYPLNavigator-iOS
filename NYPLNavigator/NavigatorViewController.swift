@@ -151,6 +151,13 @@ extension Delegatee: TriptychViewDelegate {
                 webView.progression = parent.initialProgression
                 parent.initialProgression = nil
             }
+            // Check if link is FXL.
+            if (parent.publication.metadata.rendition.layout == .fixed
+                && link.properties.layout == nil)
+                || link.properties.layout == "fixed"{
+                webView.scrollView.isPagingEnabled = false
+                webView.presentingFixedLayoutContent = true
+            }
         }
         return webView
     }

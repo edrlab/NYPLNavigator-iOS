@@ -24,6 +24,8 @@ final class WebView: WKWebView {
 
     public var documentLoaded = false
 
+    public var presentingFixedLayoutContent = false // TMP fix for fxl.
+
     let jsEvents = ["leftTap": leftTapped,
                     "centerTap": centerTapped,
                     "rightTap": rightTapped,
@@ -60,8 +62,8 @@ final class WebView: WKWebView {
         scrollView.bounces = false
         scrollView.isPagingEnabled = true
         scrollView.showsHorizontalScrollIndicator = false
+        scrollView.showsVerticalScrollIndicator = false
         navigationDelegate = self
-
     }
 
     @available(*, unavailable)
@@ -72,7 +74,7 @@ final class WebView: WKWebView {
 
 extension WebView {
 
-    /// Called from the JS code when a tap is detected in the 2/10 left 
+    /// Called from the JS code when a tap is detected in the 2/10 left
     /// part of the screen.
     ///
     /// - Parameter body: Unused.
@@ -158,21 +160,6 @@ extension WebView {
         }
         progression = newProgression
     }
-//
-//    /// Save current document progression in the userDefault for later reopening
-//    /// of the book.
-//    /// A specific progression can be given, and if not, it will try to determine
-//    /// it unprecisely using screenIndex over the total number of screens.
-//    /// (Imprecise cause not always up to date)
-//    fileprivate func updateProgression(to value: Double) {
-////        guard let publicationIdentifier = viewDelegate?.publicationIdentifier() else {
-////            return
-////        }
-////        print("Updated progression to \(value)")
-////        UserDefaults.standard.set(value,
-////                                  forKey: "\(publicationIdentifier)-documentProgression")
-//        progression
-//    }
 }
 
 // MARK: - WKScriptMessageHandler for handling incoming message from the Bridge.js
@@ -217,6 +204,7 @@ extension WebView: WKNavigationDelegate {
                 // TO/DO add URL normalisation.
                 //check url if internal or external
                 let publicationBaseUrl = viewDelegate?.publicationBaseUrl()
+
                 if url.host == publicationBaseUrl?.host,
                     let baseUrlString = publicationBaseUrl?.absoluteString {
                     // Internal link.
@@ -239,7 +227,15 @@ extension WebView: WKNavigationDelegate {
 }
 
 extension WebView: UIScrollViewDelegate {
+    // IFFXL
     func viewForZooming(in: UIScrollView) -> UIView? {
+        if presentingFixedLayoutContent {
+            for view in scrollView.subviews { // For FXL tmp
+                if let classString = NSClassFromString("WKContentView"), view.isKind(of: classString) {
+                    return view
+                }
+            }// tmp end
+        }
         return nil
     }
 }
